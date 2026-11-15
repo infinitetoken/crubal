@@ -85,6 +85,8 @@ export type Lane = {
   label?: string;
   /** Revision 55: the lane in one line, what it is; a surface shows it on the lane's own card. */
   describe?: string;
+  /** Revision 56: the sort of row the lane is, a surface's own lower-case word (a list, a set of steps); the engine carries it and judges nothing of it. */
+  sort?: string;
   /** Revision 55: the lane at length: why a thing is here and how it leaves; a surface shows it where the lane is opened. */
   about?: string;
   utility?: string;
@@ -122,6 +124,8 @@ export type Lane = {
     quiet?: LanePress;
     quick: LanePress[];
     opens: "page";
+    /** Revision 56: the face the lane's cards wear, a surface's own lower-case word; over the kind's face for this lane. */
+    face?: string;
     line: number;
   };
   line: number;
@@ -353,6 +357,10 @@ function readLane(node: Node): Lane {
     if (c.key === "label") s.label = unquote(v);
     else if (c.key === "describe") s.describe = unquote(v);
     else if (c.key === "about") s.about = unquote(v);
+    else if (c.key === "sort") {
+      if (!/^[a-z][a-z0-9-]*$/.test(v)) throw new CrubalError(`sort is one lower-case word, a surface's name for the sort of row: ${v}`, c.line);
+      s.sort = v;
+    }
     else if (c.key === "utility") s.utility = v;
     else if (c.key === "view") s.view = v;
     else if (c.key === "serve") s.serve = v;
@@ -417,7 +425,10 @@ function readLane(node: Node): Lane {
         else if (k.key === "quick") card.quick.push(readPress(kv, k.line, "quick"));
         else if (k.key === "opens") {
           if (kv !== "page") throw new CrubalError(`opens: ${kv}: a card opens its page; a nest is not in this language version`, k.line);
-        } else throw new CrubalError(`a lane's card has name, sub, lines, state, moment, figure, primary, quiet, quick and opens, not ${k.key}`, k.line);
+        } else if (k.key === "face") {
+          if (!/^[a-z][a-z0-9-]*$/.test(kv)) throw new CrubalError(`face is one lower-case word, a surface's name for the card: ${kv}`, k.line);
+          card.face = kv;
+        } else throw new CrubalError(`a lane's card has name, sub, lines, state, moment, figure, primary, quiet, quick, opens and face, not ${k.key}`, k.line);
       }
       if (!card.name.length) throw new CrubalError(`the lane ${name}'s card names nothing`, c.line);
       s.card = card;
@@ -425,7 +436,7 @@ function readLane(node: Node): Lane {
       s.after = splitList(v);
       for (const u of s.after) if (!/^[\w:-]+$/.test(u)) throw new CrubalError(`after names the view's marked filters: ${u}`, c.line);
       if (!s.after.length) throw new CrubalError("after names the view's marked filters", c.line);
-    } else throw new CrubalError(`a lane has label, describe, about, utility, view, serve, pick, done, step, until, after, group, band, house, serves, home and card, not ${c.key}`, c.line);
+    } else throw new CrubalError(`a lane has label, describe, about, sort, utility, view, serve, pick, done, step, until, after, group, band, house, serves, home and card, not ${c.key}`, c.line);
   }
   if (!s.view && !s.serve) throw new CrubalError(`the lane ${name} names no view and no serve`, node.line);
   if (s.view && s.serve) throw new CrubalError(`the lane ${name} names both a view and a serve`, node.line);

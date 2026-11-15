@@ -384,10 +384,10 @@ view with its version when it has one (`"dvds /2026-11-01"`), and the first entr
 A display (12.9) is `{"display", "label", "describe", "layout", "slots": [{"from", "to"}], "tokens":
 {name: value}}` under `displays`, its slots in order and its tokens as the words they were written.
 
-A lane (12.10) is `{"lane", "version", "label", (revision 55) "describe", "about", "utility", "view" | "serve", "pick": {"filter",
+A lane (12.10) is `{"lane", "version", "label", (revision 55) "describe", "about", (revision 56) "sort", "utility", "view" | "serve", "pick": {"filter",
 "value"}, "done": {"filter", "value"} | "viewed", or in their place (revision 34) "step" and "until": [filter…], (revision 38) "after": [filter…], "group" (revision 32), "band", "house", "serves": [{"as", "items"}], "home":
 {"figure", "word": {"one", "many"} | "…", "press": {"word", "to", "glyph"?}, "chips"}, "card": {"name", "sub",
-"lines", "state", "moment", "figure", "primary", "quiet", "quick": [{"word", "to", "glyph"?}], "opens"}}` under
+"lines", "state", "moment", "figure", "primary", "quiet", "quick": [{"word", "to", "glyph"?}], "opens", (revision 56) "face"}}` under
 `lanes`, `house` as a string like every number.
 
 ## 12.8 Well-formed views
@@ -491,6 +491,7 @@ lane: ordersToPick /2026-11-05
 | `lane` | its name (a lower-case word) and dated version; a member like a view, listed in `members` |
 | `label` | its word on a screen |
 | `describe` · `about` | revision 55: what the lane is, in one line (`describe`), and at length (`about`: why a thing is here and how it leaves). Each is one line of text. A surface shows the first on the lane's own card and the second where the lane is opened; neither changes what the lane holds |
+| `sort` | revision 56: the sort of row the lane is, one lower-case word (letters, digits and hyphens) that belongs to the surface drawing it (a list, a set of steps). The engine reads it, carries it and prints it back, and judges nothing of it beyond its being one word; a surface that does not know the word draws the lane as it would one that says nothing. A lane's `card` MAY say `face` the same way: the face its cards wear on that surface, over the face its kind names (11.2) |
 | `utility` | the utility of this package whose acts its presses may name |
 | `view` | the view of this package that serves its cards; the view's shapes give the slots a card may name |
 | `serve` | instead of a view: the name of a function the utility provides, for a lane the app serves itself (a setup, a tally); such a lane has no pick, done or card |
