@@ -105,7 +105,7 @@ export type ClassDef = {
 };
 
 /** A kind as declared (11.2), beyond what the engine indexes by level. */
-export type KindDef = { name: string; line: number; levels: string[]; base?: string; schema?: string | { [level: string]: string }; follows?: { [facet: string]: string }; /** Revision 31: per level, the aspects a follower may choose, the first the default (11.2). */ follow?: { [level: string]: string[] }; followLine?: number; /** Revision 35: per level, the number facet that is its quantity, so a record there may be taken in part (11.2). */ shares?: { [level: string]: string }; sharesLine?: number };
+export type KindDef = { name: string; line: number; levels: string[]; /** Revision 56: per level, the face a record's card wears: a surface's own word, carried and not judged. */ face?: { [level: string]: string }; base?: string; schema?: string | { [level: string]: string }; follows?: { [facet: string]: string }; /** Revision 31: per level, the aspects a follower may choose, the first the default (11.2). */ follow?: { [level: string]: string[] }; followLine?: number; /** Revision 35: per level, the number facet that is its quantity, so a record there may be taken in part (11.2). */ shares?: { [level: string]: string }; sharesLine?: number };
 
 export type Dictionary = {
   facets: Map<string, Facet>;
@@ -687,6 +687,18 @@ export function readDefinitions(source: string, into: Dictionary = emptyDictiona
             const facet = l.value.trim();
             if (!/^[\w:-]+$/.test(facet)) throw new CrubalError(`shares at ${l.key} names one facet, its quantity: ${facet}`, l.line);
             def.shares[l.key] = facet;
+          }
+        }
+        // Revision 56: `face:`, per level the face a record's card wears, a surface's own lower-case word.
+        const face = node.children.find((c) => c.key === "face");
+        if (face) {
+          def.face = {};
+          for (const l of face.children) {
+            if (!l.key) continue;
+            if (!names.includes(l.key)) throw new CrubalError(`face names ${l.key}, which isn't a level of ${kind}`, l.line);
+            const word = l.value.trim();
+            if (!/^[a-z][a-z0-9-]*$/.test(word)) throw new CrubalError(`face at ${l.key} is one lower-case word, a surface's name for the card: ${word}`, l.line);
+            def.face[l.key] = word;
           }
         }
         into.kinds.set(kind, def);

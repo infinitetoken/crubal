@@ -49,6 +49,7 @@ export function kindJson(dict: Dictionary, k: KindDef): JsonObject {
   if (k.follows) o.follows = { ...k.follows };
   if (k.follow) o.follow = Object.fromEntries(Object.entries(k.follow).map(([l, a]) => [l, [...a]]));
   if (k.shares && Object.keys(k.shares).length) o.shares = { ...k.shares };
+  if (k.face && Object.keys(k.face).length) o.face = { ...k.face };
   const identify: JsonObject = {};
   const match: JsonObject = {};
   for (const level of k.levels) {
@@ -321,6 +322,7 @@ export function laneJson(s: Lane): JsonObject {
   if (s.label) o.label = s.label;
   if (s.describe) o.describe = s.describe;
   if (s.about) o.about = s.about;
+  if (s.sort) o.sort = s.sort;
   if (s.utility) o.utility = s.utility;
   if (s.view) o.view = s.view;
   if (s.serve) o.serve = s.serve;
@@ -351,6 +353,7 @@ export function laneJson(s: Lane): JsonObject {
     if (s.card.quiet) c.quiet = pressJson(s.card.quiet);
     if (s.card.quick.length) c.quick = s.card.quick.map(pressJson);
     c.opens = s.card.opens;
+    if (s.card.face) c.face = s.card.face;
     o.card = c;
   }
   return o;
@@ -481,6 +484,7 @@ function kindText(k: JsonObject): string[] {
   if (isObj(k.follows)) out.push("  follows:", ...Object.entries(k.follows).map(([a, b]) => `    ${a}: ${b}`));
   if (isObj(k.follow)) out.push("  follow:", ...Object.entries(k.follow as JsonObject).map(([l, aspects]) => `    ${l}: ${(aspects as string[]).join(", ")}`));
   if (isObj(k.shares)) out.push("  shares:", ...Object.entries(k.shares as JsonObject).map(([l, facet]) => `    ${l}: ${facet}`));
+  if (isObj(k.face)) out.push("  face:", ...Object.entries(k.face as JsonObject).map(([l, face]) => `    ${l}: ${face}`));
   if (isObj(k.match)) out.push("  match:", ...Object.entries(k.match).map(([l, groups]) => `    ${l}: ${(groups as string[][]).map((g) => g.join(" + ")).join("; ")}`));
   out.push(...kv("  ", "archive", k.archive));
   return out;
@@ -713,7 +717,7 @@ function flowText(f: JsonObject): string[] {
 }
 
 function laneText(s: JsonObject): string[] {
-  const out = [`lane: ${s.lane} /${s.version}`, ...kv("  ", "label", s.label), ...kv("  ", "describe", s.describe), ...kv("  ", "about", s.about), ...kv("  ", "utility", s.utility), ...kv("  ", "view", s.view), ...kv("  ", "serve", s.serve)];
+  const out = [`lane: ${s.lane} /${s.version}`, ...kv("  ", "label", s.label), ...kv("  ", "describe", s.describe), ...kv("  ", "about", s.about), ...kv("  ", "sort", s.sort), ...kv("  ", "utility", s.utility), ...kv("  ", "view", s.view), ...kv("  ", "serve", s.serve)];
   if (typeof s.step === "string") out.push(`  step: ${s.step}`);
   if (Array.isArray(s.until) && s.until.length) out.push(`  until: ${s.until.join(", ")}`);
   if (Array.isArray(s.after) && s.after.length) out.push(`  after: ${s.after.join(", ")}`);
@@ -742,6 +746,7 @@ function laneText(s: JsonObject): string[] {
     }
     if (Array.isArray(c.quick)) for (const q of c.quick as JsonObject[]) { const t = pressText(q); if (t) out.push(`    quick: ${t}`); }
     if (typeof c.opens === "string") out.push(`    opens: ${c.opens}`);
+    if (typeof c.face === "string") out.push(`    face: ${c.face}`);
   }
   return out;
 }

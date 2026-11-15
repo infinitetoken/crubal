@@ -520,3 +520,17 @@ test("revision 55: a lane says what it is, describe in one line and about at len
   assert.match(text, /^ {2}describe: "?Orders waiting to be picked\."?$/m);
   assert.match(text, /^ {2}about: "?An order stands here from the moment it is paid until its pick is done\."?$/m);
 });
+
+test("revision 56: a lane says its sort, its card a face, a kind a face per level; read, carried and printed back, and judged only as words", () => {
+  const src = shop("")
+    .replace(/^(lane: \S+ \/\S+\n)/m, "$1  sort: list\n")
+    .replace(/^( {2}levels: order, line\n)/m, "$1  face:\n    order: ticket\n    line: id-card\n")
+    .replace(/^( {2}card:\n)/m, "$1    face: ticket\n");
+  assert.match(src, /^ {4}face: ticket$/m);
+  const text = printBundle(bundleOf(parsePackage(src)));
+  assert.match(text, /^ {2}sort: list$/m);
+  assert.match(text, /^ {2}face:\n {4}order: ticket\n {4}line: id-card$/m);
+  assert.match(text, /^ {4}face: ticket$/m);
+  assert.throws(() => parsePackage(src.replace("sort: list", "sort: A List")), /sort is one lower-case word/);
+  assert.throws(() => parsePackage(src.replace("    line: id-card", "    box: id-card")), /isn't a level of order/);
+});
