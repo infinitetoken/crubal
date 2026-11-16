@@ -291,6 +291,7 @@ export function utilityJson(u: Utility): JsonObject {
   if (u.label) o.label = u.label;
   if (u.describe) o.describe = u.describe;
   if (u.group) o.group = u.group;
+  if (u.owner) o.owner = u.owner;
   if (u.serves.length) o.serves = u.serves.map((s) => ({ as: s.as, ...(s.items ? { items: [...s.items] } : {}) }));
   if (u.needs.length) o.needs = u.needs.map((n) => ({ name: n.name, ...(n.version ? { version: n.version } : {}) }));
   if (u.setup.length) o.setup = u.setup.map((s): JsonObject => ("connection" in s ? { connection: s.connection } : { setting: s.setting }));
@@ -323,6 +324,7 @@ export function laneJson(s: Lane): JsonObject {
   if (s.describe) o.describe = s.describe;
   if (s.about) o.about = s.about;
   if (s.sort) o.sort = s.sort;
+  if (s.owner) o.owner = s.owner;
   if (s.utility) o.utility = s.utility;
   if (s.view) o.view = s.view;
   if (s.serve) o.serve = s.serve;
@@ -404,6 +406,7 @@ export function bundleOf(p: Parsed): JsonObject {
   if (p.perms.emergency) o.emergency = { approvers: String(p.perms.emergency.approvers), longest: p.perms.emergency.longest };
   if (p.recipes.length) o.recipes = p.recipes.map(recipeJson);
   if (p.instructions.size) o.instructions = [...p.instructions].map(([issuer, list]): JsonObject => ({ issuer, instructions: list.map((i): JsonObject => ({ n: i.n, op: i.op, key: i.key, ...(i.to ? { to: i.to } : {}), ...(i.map.length ? { map: i.map.map(([a, b]) => ({ from: a, to: b })) } : {}) })) }));
+  if (info.groups.length) o.groups = info.groups.map((g): JsonObject => ({ group: g.name, ...(g.label ? { label: g.label } : {}), ...(g.owner ? { owner: g.owner } : {}), ...(g.order !== undefined ? { order: String(g.order) } : {}) }));
   if (info.utilities.length) o.utilities = info.utilities.map(utilityJson);
   if (info.lanes.length) o.lanes = info.lanes.map(laneJson);
   if (info.flows.length) o.flows = info.flows.map(flowJson);
@@ -657,6 +660,7 @@ export function printBundle(b: JsonObject): string {
   if (isObj(b.permissions)) out.push(...permissionsText(b.permissions), "");
   if (isObj(b.ownership)) out.push("ownership:", ...Object.entries(b.ownership).map(([k, v]) => `  ${k}: ${(v as string[]).join(", ")}`), "");
   if (isObj(b.emergency)) out.push("emergency:", `  approvers: ${b.emergency.approvers}`, `  longest: ${b.emergency.longest}`, "");
+  blocks("groups", (g) => [`group: ${g.group}`, ...kv("  ", "label", g.label), ...kv("  ", "owner", g.owner), ...kv("  ", "order", g.order)]);
   blocks("utilities", utilityText);
   blocks("lanes", laneText);
   blocks("flows", flowText);
@@ -717,7 +721,7 @@ function flowText(f: JsonObject): string[] {
 }
 
 function laneText(s: JsonObject): string[] {
-  const out = [`lane: ${s.lane} /${s.version}`, ...kv("  ", "label", s.label), ...kv("  ", "describe", s.describe), ...kv("  ", "about", s.about), ...kv("  ", "sort", s.sort), ...kv("  ", "utility", s.utility), ...kv("  ", "view", s.view), ...kv("  ", "serve", s.serve)];
+  const out = [`lane: ${s.lane} /${s.version}`, ...kv("  ", "label", s.label), ...kv("  ", "describe", s.describe), ...kv("  ", "about", s.about), ...kv("  ", "sort", s.sort), ...kv("  ", "owner", s.owner), ...kv("  ", "utility", s.utility), ...kv("  ", "view", s.view), ...kv("  ", "serve", s.serve)];
   if (typeof s.step === "string") out.push(`  step: ${s.step}`);
   if (Array.isArray(s.until) && s.until.length) out.push(`  until: ${s.until.join(", ")}`);
   if (Array.isArray(s.after) && s.after.length) out.push(`  after: ${s.after.join(", ")}`);
@@ -752,7 +756,7 @@ function laneText(s: JsonObject): string[] {
 }
 
 function utilityText(u: JsonObject): string[] {
-  const out = [`utility: ${u.utility} /${u.version}`, ...kv("  ", "label", u.label), ...kv("  ", "describe", u.describe), ...kv("  ", "group", u.group)];
+  const out = [`utility: ${u.utility} /${u.version}`, ...kv("  ", "label", u.label), ...kv("  ", "describe", u.describe), ...kv("  ", "group", u.group), ...kv("  ", "owner", u.owner)];
   if (Array.isArray(u.serves)) out.push(`  serves: ${(u.serves as JsonObject[]).map((s) => `${s.as}${Array.isArray(s.items) ? `(${(s.items as string[]).join(", ")})` : ""}`).join(", ")}`);
   if (Array.isArray(u.needs)) out.push(`  needs: ${(u.needs as JsonObject[]).map((n) => `${n.name}${n.version ? ` /${n.version}` : ""}`).join(", ")}`);
   if (Array.isArray(u.setup)) out.push(`  setup: ${(u.setup as JsonObject[]).map((s) => (typeof s.connection === "string" ? `connection ${s.connection}` : `setting ${s.setting}`)).join(", ")}`);
@@ -778,7 +782,7 @@ export function readBundleInto(b: JsonObject, into: Dictionary = emptyDictionary
 /** An empty Parsed to read packages onto, in order. */
 export function emptyParsed(): Parsed {
   const { perms } = readAccess("");
-  return { info: { name: "", version: "", owner: "", line: 0, crubal: 2, crubalLine: 0, extends: [], prefixes: new Map(), trust: [], dict: emptyDictionary(), contracts: [], header: {}, terms: {}, utilities: [], lanes: [], flows: [], acts: [] }, dict: emptyDictionary(), rules: [], contracts: [], views: emptyViewSet(), perms, edges: [], recipes: [], instructions: new Map() };
+  return { info: { name: "", version: "", owner: "", line: 0, crubal: 2, crubalLine: 0, extends: [], prefixes: new Map(), trust: [], dict: emptyDictionary(), contracts: [], header: {}, terms: {}, utilities: [], groups: [], lanes: [], flows: [], acts: [] }, dict: emptyDictionary(), rules: [], contracts: [], views: emptyViewSet(), perms, edges: [], recipes: [], instructions: new Map() };
 }
 
 /**
@@ -789,7 +793,7 @@ export function readBundleOnto(bundle: JsonObject, base: Parsed): Parsed {
   const text = printBundle(bundle);
   readDefinitions(text, base.dict);
   const [info] = readPackages(text);
-  if (info) base.info = { ...info, dict: base.dict, terms: Object.keys(info.terms).length ? info.terms : base.info.terms, utilities: [...base.info.utilities.filter((h) => !info.utilities.some((n) => n.name === h.name)), ...info.utilities], lanes: [...base.info.lanes.filter((h) => !info.lanes.some((n) => n.name === h.name)), ...info.lanes], flows: [...base.info.flows.filter((h) => !info.flows.some((n) => n.name === h.name)), ...info.flows], acts: [...base.info.acts.filter((h) => !info.acts.some((n) => n.name === h.name)), ...info.acts] };
+  if (info) base.info = { ...info, dict: base.dict, terms: Object.keys(info.terms).length ? info.terms : base.info.terms, utilities: [...base.info.utilities.filter((h) => !info.utilities.some((n) => n.name === h.name)), ...info.utilities], groups: [...base.info.groups.filter((h) => !info.groups.some((n) => n.name === h.name)), ...info.groups], lanes: [...base.info.lanes.filter((h) => !info.lanes.some((n) => n.name === h.name)), ...info.lanes], flows: [...base.info.flows.filter((h) => !info.flows.some((n) => n.name === h.name)), ...info.flows], acts: [...base.info.acts.filter((h) => !info.acts.some((n) => n.name === h.name)), ...info.acts] };
   const byName = <T extends { name: string }>(have: T[], next: T[]) => [...have.filter((h) => !next.some((n) => n.name === h.name)), ...next];
   base.rules = byName(base.rules, readRules(text));
   base.contracts = byName(base.contracts, readContracts(text));

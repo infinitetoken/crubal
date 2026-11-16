@@ -29,6 +29,8 @@ export type PackageInfo = {
   terms: { [audience: string]: string };
   /** The utilities the package declares (11.1, `utility:` blocks). */
   utilities: Utility[];
+  /** Revision 57: the groups the package declares (11.1, `group:` blocks), each once: its word on a screen, its owner and its place in the order. */
+  groups: Group[];
   /** The lanes the package declares (12.10, `lane:` blocks). */
   lanes: Lane[];
   /** The flows the package declares (12.11, `flow:` blocks). */
@@ -47,6 +49,8 @@ export type Utility = {
   version: string;
   /** Revision 32: the group the utility stands in where a room segments its rows (Org, Platform, Services, Clients). */
   group?: string;
+  /** Revision 57: whom what the utility stands for belongs to (the place, the platform, a person, an outside service), a surface's own lower-case word; the engine carries it and judges nothing of it. */
+  owner?: string;
   label?: string;
   describe?: string;
   /** `curator(ship, returns)` → `{ as: "curator", items: ["ship", "returns"] }`; `controller` → no items. */
@@ -60,6 +64,18 @@ export type Utility = {
    * draws and a hue from the eight words. */
   mark?: { glyph: string; hue: Hue; line: number };
   line: number;
+};
+
+/**
+ * A group (11.1, revision 57): where utilities stand together, declared once. A utility names it by its word
+ * (`group:`); the block says the word people see, its owner and its place in the order. Carried, not judged.
+ */
+export type Group = { name: string; label?: string; owner?: string; order?: number; line: number };
+
+/** Revision 57: an owner is one lower-case word that belongs to the surface drawing it. */
+const ownerWord = (v: string, line: number): string => {
+  if (!/^[a-z][a-z0-9-]*$/.test(v)) throw new CrubalError(`owner is one lower-case word, a surface's name for whom the thing belongs to: ${v}`, line);
+  return v;
 };
 
 /** The eight hue words a mark may name (11.1, revision 13); an app maps each to its own colors. */
@@ -87,6 +103,8 @@ export type Lane = {
   describe?: string;
   /** Revision 56: the sort of row the lane is, a surface's own lower-case word (a list, a set of steps); the engine carries it and judges nothing of it. */
   sort?: string;
+  /** Revision 57: whom the lane's cards belong to where that differs from its utility, a surface's own lower-case word; carried and not judged. */
+  owner?: string;
   /** Revision 55: the lane at length: why a thing is here and how it leaves; a surface shows it where the lane is opened. */
   about?: string;
   utility?: string;
@@ -288,7 +306,8 @@ function readUtility(node: Node): Utility {
       const g = unquote(c.value.trim());
       if (!g) throw new CrubalError("group names the group the utility stands in: a word", c.line);
       u.group = g;
-    } else if (c.key === "serves") {
+    } else if (c.key === "owner") u.owner = ownerWord(c.value.trim(), c.line);
+    else if (c.key === "serves") {
       for (const p of splitServes(c.value)) {
         const m = p.match(/^([A-Za-z][\w-]*)(?:\((.*)\))?$/);
         if (!m) throw new CrubalError(`serves: ${p} is not a name, or a name with items in parentheses`, c.line);
@@ -316,9 +335,27 @@ function readUtility(node: Node): Utility {
       if (!m) throw new CrubalError(`mark: is "<glyph> <hue>", the glyph a lower-case word and the hue one of ${HUES.join(", ")}: ${c.value.trim()}`, c.line);
       if (!isHue(m[2])) throw new CrubalError(`mark: ${m[2]} is not a hue; the eight are ${HUES.join(", ")}`, c.line);
       u.mark = { glyph: m[1] as string, hue: m[2], line: c.line };
-    } else throw new CrubalError(`a utility has label, describe, group, serves, needs, setup, acts and mark, not ${c.key}`, c.line);
+    } else throw new CrubalError(`a utility has label, describe, group, owner, serves, needs, setup, acts and mark, not ${c.key}`, c.line);
   }
   return u;
+}
+
+/** Read one `group:` block (revision 57). */
+function readGroup(node: Node): Group {
+  const name = unquote(node.value.trim());
+  if (!name) throw new CrubalError("a group is \"group: <word>\", the word utilities name it by", node.line);
+  const g: Group = { name, line: node.line };
+  for (const c of node.children) {
+    if (!c.key) continue;
+    const v = c.value.trim();
+    if (c.key === "label") g.label = unquote(v);
+    else if (c.key === "owner") g.owner = ownerWord(v, c.line);
+    else if (c.key === "order") {
+      if (!/^\d+$/.test(v)) throw new CrubalError(`order is a whole number, the group's place among the groups: ${v}`, c.line);
+      g.order = Number(v);
+    } else throw new CrubalError(`a group has label, owner and order, not ${c.key}`, c.line);
+  }
+  return g;
 }
 
 /** `Word -> target`, or `Word as glyph -> target` (revision 33): a press's word, its glyph and where it lands. */
@@ -361,6 +398,7 @@ function readLane(node: Node): Lane {
       if (!/^[a-z][a-z0-9-]*$/.test(v)) throw new CrubalError(`sort is one lower-case word, a surface's name for the sort of row: ${v}`, c.line);
       s.sort = v;
     }
+    else if (c.key === "owner") s.owner = ownerWord(v, c.line);
     else if (c.key === "utility") s.utility = v;
     else if (c.key === "view") s.view = v;
     else if (c.key === "serve") s.serve = v;
@@ -436,7 +474,7 @@ function readLane(node: Node): Lane {
       s.after = splitList(v);
       for (const u of s.after) if (!/^[\w:-]+$/.test(u)) throw new CrubalError(`after names the view's marked filters: ${u}`, c.line);
       if (!s.after.length) throw new CrubalError("after names the view's marked filters", c.line);
-    } else throw new CrubalError(`a lane has label, describe, about, sort, utility, view, serve, pick, done, step, until, after, group, band, house, serves, home and card, not ${c.key}`, c.line);
+    } else throw new CrubalError(`a lane has label, describe, about, sort, owner, utility, view, serve, pick, done, step, until, after, group, band, house, serves, home and card, not ${c.key}`, c.line);
   }
   if (!s.view && !s.serve) throw new CrubalError(`the lane ${name} names no view and no serve`, node.line);
   if (s.view && s.serve) throw new CrubalError(`the lane ${name} names both a view and a serve`, node.line);
@@ -603,7 +641,7 @@ export function readPackages(source: string): PackageInfo[] {
     const [head, ...rest] = readTree(text);
     if (!head) throw new CrubalError("an empty package", start + 1);
     const [name = "", version = ""] = head.value.split(/\s+\//).map((s) => s.trim());
-    const info: PackageInfo = { name, version, owner: "", line: head.line, crubal: LANGUAGE, crubalLine: head.line, extends: [], prefixes: new Map(), trust: [], dict: emptyDictionary(), contracts: [], header: {}, terms: {}, utilities: [], lanes: [], flows: [], acts: [] };
+    const info: PackageInfo = { name, version, owner: "", line: head.line, crubal: LANGUAGE, crubalLine: head.line, extends: [], prefixes: new Map(), trust: [], dict: emptyDictionary(), contracts: [], header: {}, terms: {}, utilities: [], groups: [], lanes: [], flows: [], acts: [] };
     for (const c of head.children) {
       if (c.key === "owner") info.owner = c.value;
       if (c.key === "crubal") {
@@ -626,6 +664,11 @@ export function readPackages(source: string): PackageInfo[] {
         const u = readUtility(node);
         if (info.utilities.some((x) => x.name === u.name)) throw new CrubalError(`the utility ${u.name} twice in one package`, node.line);
         info.utilities.push(u);
+      }
+      if (node.key === "group") {
+        const g = readGroup(node);
+        if (info.groups.some((x) => x.name === g.name)) throw new CrubalError(`the group ${g.name} twice in one package`, node.line);
+        info.groups.push(g);
       }
       if (node.key === "lane") {
         const s = readLane(node);

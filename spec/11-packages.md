@@ -60,12 +60,32 @@ utility: orders /2026-10-16
 |---|---|
 | `utility` | its name (a lower-case word, its identity like a contract's) and dated version |
 | `label` · `describe` | what people see |
-| `group` | revision 32: the group the utility stands in where a room of the mounting app segments its rows by utility (Org, Platform, Services, Clients): a word; utilities sharing it stand together under it. Absent, the utility stands under its own word |
+| `group` | revision 32: the group the utility stands in where a room of the mounting app segments its rows by utility (Org, Platform, Services, Clients): a word; utilities sharing it stand together under it. Absent, the utility stands under its own word. Revision 57: a group MAY be declared once, in a `group:` block (below) |
+| `owner` | revision 57: whom what the utility stands for belongs to on a surface, one lower-case word (letters, digits and hyphens) that belongs to the surface drawing it: the deployment (`place`), the platform, a person, an outside service by its name. The engine reads it, carries it and prints it back, and judges only that it is one word; it grants nothing and is no part of ownership (chapter 14) or of the package's own `owner` (11.1), which is who publishes it. Absent, a surface reads the owner from the utility's group, and last takes the thing as the deployment's |
 | `serves` | whom it mounts for: presets, relations or audiences (chapter 14.6, 12.4), each optionally narrowed in parentheses to the presets, menu items or relations it shows screens for |
 | `needs` | the packages (`domain/name`, optionally with a version) and the other utilities it depends on |
 | `acts` | the acts the utility provides by name (lower-case words), which a lane's presses may name (12.10); the app that mounts the utility provides their bodies; an act a form names (7.7, revision 16) opens that form before it runs |
 | `setup` | what a deployment provides before it runs: `connection <name>` (a credential the host holds, chapter 7.6) and `setting <facet>` (a value on the deployment's own record) |
 | `mark` (revision 13) | the utility's look wherever it shows: a glyph and a hue, `mark: <glyph> <hue>`. The glyph is a lower-case word the mounting app's kit draws (an unknown one is drawn as the app's default); the hue is one of eight words, `amber`, `blue`, `violet`, `slate`, `teal`, `plum`, `coral`, `olive`, which the app maps to its own colors in light and dark. A utility without a mark has none |
+
+**A group (revision 57).** A package MAY declare a group once, in a block of its own, so the word, the owner
+and the place in the order are said in one place and not in each app that draws it:
+
+```
+group: Org
+  label: Your place
+  owner: place
+  order: 3
+```
+
+`group` is the word utilities name it by (`group: Org` on a utility); `label` is the word people see;
+`owner` is one lower-case word, read as a utility's is; `order` is a whole number, the group's place among
+the groups, lowest first. Each is optional. A group is no member: it has no version and is not listed in
+`members`; the bundle carries it under `groups` as `{"group", "label", "owner", "order"}`, `order` as a
+string like every number. The engine judges only the block's shape: refused at reading are a group with
+no word, a setting it does not have, an owner that is not one word, an order that is not a whole number,
+and one group twice in a package. A utility MAY name a group no package declares, as before; where two
+installed packages declare the same group, the one read later stands.
 
 A utility is a member like any other: versioned, listed in `members`, carried in the bundle (11.6). It
 grants nothing: who may use it is still edges (chapter 14). A package MUST be refused at publish when a
@@ -241,7 +261,7 @@ A published version MUST NOT change. A mistake is fixed by a new version.
 ```
 
 The member sections (`kinds`, `facets`, `classes`, `rules`, `contracts`, `views`, `shapes`, `displays`,
-`prints`, `filters`, `roles`, `permissions`, `ownership`, `recipes`, `utilities`, `lanes`, `flows`) each hold their members'
+`prints`, `filters`, `roles`, `permissions`, `ownership`, `recipes`, `groups` (revision 57), `utilities`, `lanes`, `flows`) each hold their members'
 JSON forms as the chapters define them. A utility with acts carries them as `"acts": ["pick", "pack"]`.
 
 ## 11.7 The home: crubal.com
