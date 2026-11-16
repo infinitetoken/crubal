@@ -534,3 +534,21 @@ test("revision 56: a lane says its sort, its card a face, a kind a face per leve
   assert.throws(() => parsePackage(src.replace("sort: list", "sort: A List")), /sort is one lower-case word/);
   assert.throws(() => parsePackage(src.replace("    line: id-card", "    box: id-card")), /isn't a level of order/);
 });
+
+test("revision 57: a utility and a lane say an owner, a group is declared once with its label, owner and order; read, carried and printed back, and judged only as words", () => {
+  const src = `${shop("")
+    .replace(/^(utility: \S+ \/\S+\n)/m, "$1  group: Org\n  owner: cashierfu\n")
+    .replace(/^(lane: \S+ \/\S+\n)/m, "$1  owner: stripe\n")}\ngroup: Org\n  label: Your place\n  owner: place\n  order: 3\n`;
+  assert.match(src, /^ {2}owner: cashierfu$/m);
+  assert.match(src, /^ {2}owner: stripe$/m);
+  const bundle = bundleOf(parsePackage(src));
+  assert.deepEqual(bundle.groups, [{ group: "Org", label: "Your place", owner: "place", order: "3" }]);
+  const text = printBundle(bundle);
+  assert.match(text, /^group: Org\n {2}label: "?Your place"?\n {2}owner: place\n {2}order: 3$/m);
+  assert.match(text, /^ {2}owner: cashierfu$/m);
+  assert.match(text, /^ {2}owner: stripe$/m);
+  assert.deepEqual(bundleOf(parsePackage(text)).groups, bundle.groups);
+  assert.throws(() => parsePackage(src.replace("owner: cashierfu", "owner: Cashierfu Inc")), /owner is one lower-case word/);
+  assert.throws(() => parsePackage(src.replace("order: 3", "order: third")), /order is a whole number/);
+  assert.throws(() => parsePackage(`${src}group: Org\n  label: Again\n`), /the group Org twice/);
+});
