@@ -2,10 +2,10 @@
 // chain, build the entry, apply it with the engine's applyEntry, persist the difference, append the log.
 // The log is the truth; `rebuild` gives every other table back from it.
 
-import { compareVersions } from "@cruba/crubal";
-import { recordAt } from "@cruba/crubal";
-import { applyEntry, diffWrites, differs, type Draft, type Entry, type State, MemoryRecords } from "@cruba/crubal";
-import { type Contract, proposalMet, quorumHolds } from "@cruba/crubal";
+import { compareVersions } from "@crubal/engine";
+import { recordAt } from "@crubal/engine";
+import { applyEntry, diffWrites, differs, type Draft, type Entry, type State, MemoryRecords } from "@crubal/engine";
+import { type Contract, proposalMet, quorumHolds } from "@crubal/engine";
 
 /** A commit refused by a contract's quorum (7.6): the contract, and the proposal cited if any. */
 export class QuorumRefused extends Error {
@@ -18,24 +18,24 @@ export class QuorumRefused extends Error {
     this.cited = cited;
   }
 }
-import { Engine, serialize } from "@cruba/crubal";
-import { CrubalError } from "@cruba/crubal";
-import { Access, type Edge } from "@cruba/crubal";
-import type { View } from "@cruba/crubal";
-import { apply, pending, type Store as LifecycleStore } from "@cruba/crubal";
-import type { Json, JsonObject, Record } from "@cruba/crubal";
-import { entryHash, verifyChain, writeHash, type Keys } from "@cruba/crubal";
+import { Engine, serialize } from "@crubal/engine";
+import { CrubalError } from "@crubal/engine";
+import { Access, type Edge } from "@crubal/engine";
+import type { View } from "@crubal/engine";
+import { apply, pending, type Store as LifecycleStore } from "@crubal/engine";
+import type { Json, JsonObject, Record } from "@crubal/engine";
+import { entryHash, verifyChain, writeHash, type Keys } from "@crubal/engine";
 import { type Client, type Pool, transaction } from "./db.ts";
 import { isObj, loadState, persist, wipeState, recordOf } from "./state.ts";
-import { type Facet, type Parsed, readBundle, readBundleOnto, verifyBundle } from "@cruba/crubal";
-import { classify } from "@cruba/crubal";
-import { dryRun, restamp, type StepStats } from "@cruba/crubal";
+import { type Facet, type Parsed, readBundle, readBundleOnto, verifyBundle } from "@crubal/engine";
+import { classify } from "@crubal/engine";
+import { dryRun, restamp, type StepStats } from "@crubal/engine";
 import { installsInForce, checkAll, definitionsOf, unitsExtensionOf, workingBundle } from "./definitions.ts";
-import { decideReview, type Decision, openItems } from "@cruba/crubal";
-import { land, receive, type IntakeOutcome } from "@cruba/crubal";
+import { decideReview, type Decision, openItems } from "@crubal/engine";
+import { land, receive, type IntakeOutcome } from "@crubal/engine";
 import { entriesSince, markStale, type Projecting, publish } from "./projector.ts";
 import { copyWorking, loadWhole, Needs, settle, type WorkingRecords, workingState } from "./working.ts";
-import type { StreamEntry } from "@cruba/crubal";
+import type { StreamEntry } from "@crubal/engine";
 
 /** A state's maps copied, so a draft can be changed without touching what was loaded. */
 function draftOf(state: State): Draft {

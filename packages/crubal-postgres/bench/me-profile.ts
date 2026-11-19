@@ -1,5 +1,5 @@
 // me-profile.mts: the phases of one view's full publish on ME's catalog: load, project (per page), write.
-import { Access, Views, serialize } from "@cruba/crubal";
+import { Access, Views, serialize } from "@crubal/engine";
 import { connect, PgStore, Needs, settle, workingState } from "../src/index.ts";
 import { loadWhole } from "../src/working.ts";
 const pool = connect(process.env.CRUBAL_PG_URL ?? "postgres:///postgres", process.env.CRUBAL_PG_SCHEMA ?? "crubal_me");

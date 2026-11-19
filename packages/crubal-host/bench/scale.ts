@@ -4,9 +4,9 @@
 // and the process's memory across requests to many owners. Run with CRUBAL_PG_URL set:
 //   node bench/scale.ts [--owners 1000 --each 1000 --big 1000000 --schema scale_probe --keep]
 // The schema is dropped at the end unless --keep; a kept schema is reused by the next run (loads skipped).
-import { publish } from "@cruba/crubal";
-import type { JsonObject, Record } from "@cruba/crubal";
-import { connect, PgStore, testSchema } from "@cruba/crubal-postgres";
+import { publish } from "@crubal/engine";
+import type { JsonObject, Record } from "@crubal/engine";
+import { connect, PgStore, testSchema } from "@crubal/postgres";
 import { Host } from "../src/host.ts";
 import { Index } from "../src/indexer.ts";
 

@@ -1,14 +1,14 @@
-import type { Edge } from "@cruba/crubal";
+import type { Edge } from "@crubal/engine";
 // working.ts: the working set an operation runs over, loaded as it is needed. The engine is synchronous
 // and pure, so an operation runs on a set that answers what it has and notes what it lacks; the store then
 // loads what was lacking and runs the operation again on a fresh draft, until a run asks for nothing new.
 // A run that reaches the end with every question answered saw the same records a whole-state load would
 // have shown it, and touched only those.
 
-import { serialize } from "@cruba/crubal";
-import { emptyState, type State } from "@cruba/crubal";
-import type { Json, JsonObject, Record } from "@cruba/crubal";
-import { MemoryRecords } from "@cruba/crubal";
+import { serialize } from "@crubal/engine";
+import { emptyState, type State } from "@crubal/engine";
+import type { Json, JsonObject, Record } from "@crubal/engine";
+import { MemoryRecords } from "@crubal/engine";
 import type { Client } from "./db.ts";
 import { recordOf } from "./state.ts";
 

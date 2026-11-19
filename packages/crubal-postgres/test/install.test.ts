@@ -4,7 +4,7 @@
 
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import { publish } from "@cruba/crubal";
+import { publish } from "@crubal/engine";
 import pg from "pg";
 import { connect, type Pool, testSchema } from "../src/db.ts";
 import { PgStore } from "../src/store.ts";

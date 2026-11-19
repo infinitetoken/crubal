@@ -1,7 +1,7 @@
 // me-commit-page.ts: brief 17 item 8's standing targets on ME's catalog: a commit under 50 ms (one unit's
 // value set and set back, two real entries with every view's stale marks), a page under 100 ms (the shop
 // view's first page, a page with one pick, a search), from the local host index.
-import { connect, PgStore } from "@cruba/crubal-postgres";
+import { connect, PgStore } from "@crubal/postgres";
 import { Index } from "../src/indexer.ts";
 const pool = connect(process.env.CRUBAL_PG_URL ?? "postgres:///postgres", process.env.CRUBAL_PG_SCHEMA ?? "crubal_me");
 const owner = "mediaencyclopedia.com";

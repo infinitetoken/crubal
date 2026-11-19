@@ -4,11 +4,11 @@
 // truth: a contract checks the store, and the index can be dropped and rebuilt from the stream.
 
 import { createHash } from "node:crypto";
-import { facetOf, Access } from "@cruba/crubal";
-import type { Json, JsonObject, Sums } from "@cruba/crubal";
-import { type Nested, partitionOf, type StreamEntry, type View } from "@cruba/crubal";
-import type { Pool } from "@cruba/crubal-postgres";
-import type { PgStore } from "@cruba/crubal-postgres";
+import { facetOf, Access } from "@crubal/engine";
+import type { Json, JsonObject, Sums } from "@crubal/engine";
+import { type Nested, partitionOf, type StreamEntry, type View } from "@crubal/engine";
+import type { Pool } from "@crubal/postgres";
+import type { PgStore } from "@crubal/postgres";
 
 type Row = { [column: string]: unknown };
 const isObj = (v: Json | undefined): v is JsonObject => typeof v === "object" && v !== null && !Array.isArray(v);

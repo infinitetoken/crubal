@@ -4,8 +4,8 @@
 // reference host keeps the material in its own table; a platform puts a vault behind the same interface.
 
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
-import type { JsonObject } from "@cruba/crubal";
-import type { Pool } from "@cruba/crubal-postgres";
+import type { JsonObject } from "@crubal/engine";
+import type { Pool } from "@crubal/postgres";
 
 /** The key material is sealed with (AES-256-GCM); a row that holds this shape is ciphertext. */
 type Sealed = { $sealed: 1; iv: string; tag: string; data: string };

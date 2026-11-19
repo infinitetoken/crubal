@@ -6,15 +6,15 @@ import { deserialize, serialize as v8serialize } from "node:v8";
 // owner's working package, every `define` write as the member now stands. The publish checks run on the
 // result, so a definition that breaks the set is refused before it is written.
 
-import { checkActsInForce, checkFlowsInForce, checkPermissions } from "@cruba/crubal";
-import { emptyParsed, type Parsed, readBundleOnto } from "@cruba/crubal";
-import { checkPackage } from "@cruba/crubal";
-import { checkContracts } from "@cruba/crubal";
-import type { JsonObject } from "@cruba/crubal";
-import { unitsExtensionText } from "@cruba/crubal";
-import { extendUnits, resetUnits, unitsTableWith } from "@cruba/crubal";
-import { checkRules } from "@cruba/crubal";
-import { checkViews } from "@cruba/crubal";
+import { checkActsInForce, checkFlowsInForce, checkPermissions } from "@crubal/engine";
+import { emptyParsed, type Parsed, readBundleOnto } from "@crubal/engine";
+import { checkPackage } from "@crubal/engine";
+import { checkContracts } from "@crubal/engine";
+import type { JsonObject } from "@crubal/engine";
+import { unitsExtensionText } from "@crubal/engine";
+import { extendUnits, resetUnits, unitsTableWith } from "@crubal/engine";
+import { checkRules } from "@crubal/engine";
+import { checkViews } from "@crubal/engine";
 import type { Client } from "./db.ts";
 
 type Row = { [column: string]: unknown };
@@ -79,7 +79,7 @@ const builtFormat = (() => {
     const at = new URL("package.json", dir);
     if (existsSync(at)) {
       const p = JSON.parse(readFileSync(at, "utf8")) as { name?: string; version?: string };
-      if (p.name === "@cruba/crubal-postgres") return `engine ${p.version}|v8 ${process.versions.v8}`;
+      if (p.name === "@crubal/postgres") return `engine ${p.version}|v8 ${process.versions.v8}`;
     }
     dir = new URL("..", dir);
   }

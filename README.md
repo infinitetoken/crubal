@@ -8,7 +8,7 @@ The engine is universal at the kind level; commerce, media and the rest are pack
 |---|---|---|
 | [`spec/`](spec/README.md) | the specification, CRUBAL 2, in 13 chapters | CC-BY-4.0 |
 | [`corpus/`](corpus/README.md) | the conformance test corpus | CC-BY-4.0 |
-| `packages/crubal/` | the reference implementation, `@cruba/crubal` (TypeScript first; a Rust core compiled to WebAssembly once the language freezes) | Apache-2.0 |
+| `packages/crubal/` | the reference implementation, `@crubal/engine` (TypeScript first; a Rust core compiled to WebAssembly once the language freezes) | Apache-2.0 |
 | `packages/crubal-postgres/` | the persistent store on Postgres: the log as the truth, every other table rebuilt from it (docs/design/store.md) | Apache-2.0 |
 | `packages/crubal-host/` | the reference host: identity, secrets, adapters, signing, the loops and the HTTP surface (docs/design/host.md) | Apache-2.0 |
 
@@ -16,6 +16,16 @@ The engine is universal at the kind level; commerce, media and the rest are pack
 (Reader, Dictionary, Rules, Store, Exchange, Views); each level is done when its corpus folders pass.
 
 The home of the core definitions and standard packages will be `crubal.com`.
+
+## Packages
+
+The engine, the store and the host are published on npm as `@crubal/engine`, `@crubal/postgres` and
+`@crubal/host`. Through 0.3.106 they were `@cruba/crubal`, `@cruba/crubal-postgres` and `@cruba/crubal-host`;
+0.4.0 is the same code under the new names, and the old names are deprecated.
+
+The versions are 0.x: the surface still moves. In particular the engine today exports `Lane`, `Utility`,
+`Flow` and `Print`, which describe an application's screens and are on their way out of the engine into an
+extension their application owns. Do not build on them.
 
 ## Licences
 

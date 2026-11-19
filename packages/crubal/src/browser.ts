@@ -1,4 +1,4 @@
-// @cruba/crubal/browser: the pure levels, with nothing from Node (no file system, no crypto). For pages,
+// @crubal/engine/browser: the pure levels, with nothing from Node (no file system, no crypto). For pages,
 // playgrounds and edge runtimes. Store and Exchange need Node's crypto and stay in the main entry.
 
 export { CrubalError, readTree } from "./tree.ts";

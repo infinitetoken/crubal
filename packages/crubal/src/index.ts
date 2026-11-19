@@ -1,4 +1,4 @@
-// @cruba/crubal: the CRUBAL reference implementation. Pure functions; JSON in, JSON out.
+// @crubal/engine: the CRUBAL reference implementation. Pure functions; JSON in, JSON out.
 
 export { CrubalError, readTree } from "./tree.ts";
 export { AGGREGATE, aggregateOf, facetOf, leafOf, levelStep, linkStep, partsStep, rowStep } from "./address.ts";

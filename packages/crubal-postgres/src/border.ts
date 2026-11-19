@@ -4,18 +4,18 @@
 // runs table, so a run never acts twice across restarts (7.5); stream contracts read the projection stream
 // and keep an index's cursor (12.6.2); scheduled contracts tick from the schedules table (7.11).
 
-import { Access, type Edge, type Permissions } from "@cruba/crubal";
-import type { Dictionary } from "@cruba/crubal";
-import { Exchange, type Role, type RunResult } from "@cruba/crubal";
-import type { Draft, Journal } from "@cruba/crubal";
-import type { Json, JsonObject, Record } from "@cruba/crubal";
-import { MemoryRecords } from "@cruba/crubal";
-import type { Rule } from "@cruba/crubal";
-import { isSchedule, readSchedule, ticksDue } from "@cruba/crubal";
-import { openItems } from "@cruba/crubal";
-import { type Contract, receive } from "@cruba/crubal";
-import type { Offer } from "@cruba/crubal";
-import type { StreamEntry } from "@cruba/crubal";
+import { Access, type Edge, type Permissions } from "@crubal/engine";
+import type { Dictionary } from "@crubal/engine";
+import { Exchange, type Role, type RunResult } from "@crubal/engine";
+import type { Draft, Journal } from "@crubal/engine";
+import type { Json, JsonObject, Record } from "@crubal/engine";
+import { MemoryRecords } from "@crubal/engine";
+import type { Rule } from "@crubal/engine";
+import { isSchedule, readSchedule, ticksDue } from "@crubal/engine";
+import { openItems } from "@crubal/engine";
+import { type Contract, receive } from "@crubal/engine";
+import type { Offer } from "@crubal/engine";
+import type { StreamEntry } from "@crubal/engine";
 import type { PgStore } from "./store.ts";
 
 /** What performs a run's act (7.4 step 4): the host's code for a system; never a package's. */
@@ -164,7 +164,7 @@ export class PgBorder {
         if (this.acting) this.cap(ex.access, this.acting);
       }
       // The rules engine knows every record the working set holds, as the memory border's does.
-      for (const [, r] of Map.prototype.entries.call(draft.records) as Iterable<[string, import("@cruba/crubal").Record]>) ex.engine.put(r);
+      for (const [, r] of Map.prototype.entries.call(draft.records) as Iterable<[string, import("@crubal/engine").Record]>) ex.engine.put(r);
       let captured: { by: JsonObject; extra: JsonObject[] } = { by: { contract: "" }, extra: [] };
       ex.journal = { commit: (by: JsonObject, _m: unknown, _at: unknown, extra: JsonObject[] = []) => { captured = { by, extra }; return null; } } as unknown as Journal;
       const edgesBefore = new Set(draft.edges.keys());
