@@ -1,6 +1,6 @@
 // me-index.ts: the host index taking a full first publish of one ME view (brief 17 item 8), rolled back.
-import { connect, PgStore, publish } from "@cruba/crubal-postgres";
-import type { Pool } from "@cruba/crubal-postgres";
+import { connect, PgStore, publish } from "@crubal/postgres";
+import type { Pool } from "@crubal/postgres";
 import { Index } from "../src/indexer.ts";
 const pool = connect(process.env.CRUBAL_PG_URL ?? "postgres:///postgres", process.env.CRUBAL_PG_SCHEMA ?? "crubal_me");
 const owner = "mediaencyclopedia.com";

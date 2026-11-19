@@ -1,11 +1,11 @@
-import type { Edge } from "@cruba/crubal";
+import type { Edge } from "@crubal/engine";
 // state.ts: an owner's state in the tables, read into the engine's State and written back as the diff of
 // two states. The engine's applyEntry is the one meaning of a write; this file only persists its result,
 // so the Postgres store can never apply an entry differently from the memory one.
 
-import { serialize } from "@cruba/crubal";
-import { emptyState, type State } from "@cruba/crubal";
-import type { Json, JsonObject, Record } from "@cruba/crubal";
+import { serialize } from "@crubal/engine";
+import { emptyState, type State } from "@crubal/engine";
+import type { Json, JsonObject, Record } from "@crubal/engine";
 import type { Client } from "./db.ts";
 
 const isObj = (v: unknown): v is JsonObject => typeof v === "object" && v !== null && !Array.isArray(v);

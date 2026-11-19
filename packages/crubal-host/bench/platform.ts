@@ -4,10 +4,10 @@
 // seeded straight into the store's and index's tables (this measures reads, not the write path; bench.ts
 // measures that). Run with CRUBAL_PG_URL set:
 //   node bench/platform.ts [--owners 10 --records 1000000 --edges 5]
-import type { JsonObject } from "@cruba/crubal";
-import { publish } from "@cruba/crubal";
-import { connect, testSchema } from "@cruba/crubal-postgres";
-import { PgStore } from "@cruba/crubal-postgres";
+import type { JsonObject } from "@crubal/engine";
+import { publish } from "@crubal/engine";
+import { connect, testSchema } from "@crubal/postgres";
+import { PgStore } from "@crubal/postgres";
 import { Host } from "../src/host.ts";
 import { Index } from "../src/indexer.ts";
 

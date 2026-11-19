@@ -1,4 +1,4 @@
-import type { Edge } from "@cruba/crubal";
+import type { Edge } from "@crubal/engine";
 // emergency.ts: emergency access (spec 14.13), the mechanics a platform enforces. An emergency edge is
 // created only under published terms, with the approvals they require, each a signature with a key kept
 // for this alone, none by the requester; it is view or a narrow control, never admin, never grant, never an
@@ -6,10 +6,10 @@ import type { Edge } from "@cruba/crubal";
 // read under it is logged; the owner is told. The people and the policy are the platform's.
 
 import { createPublicKey, verify as edVerify } from "node:crypto";
-import { serialize } from "@cruba/crubal";
-import type { JsonObject } from "@cruba/crubal";
-import { sha256 } from "@cruba/crubal";
-import type { PgStore } from "@cruba/crubal-postgres";
+import { serialize } from "@crubal/engine";
+import type { JsonObject } from "@crubal/engine";
+import { sha256 } from "@crubal/engine";
+import type { PgStore } from "@crubal/postgres";
 
 export type EmergencyTerms = {
   /** How many approvers an edge needs. */

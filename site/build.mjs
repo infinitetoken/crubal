@@ -11,9 +11,9 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
 const out = join(here, "dist");
-const REPO = "https://github.com/nes4less/crubal";
+const REPO = "https://github.com/infinitetoken/crubal";
 const ORIGIN = "https://crubal.com";
-const RAW = "https://raw.githubusercontent.com/nes4less/crubal/main";
+const RAW = "https://raw.githubusercontent.com/infinitetoken/crubal/main";
 const STEWARD = { "@type": "Organization", name: "Infinite Token", description: "A development company. We design and build software." };
 const pages = [];
 
@@ -229,7 +229,7 @@ page(
   <li><strong>Views</strong>: shapes, filters, audiences and roles, stored projections.</li>
 </ol>
 <h2>Use it</h2>
-<pre><code>npm install @cruba/crubal</code></pre>
+<pre><code>npm install @crubal/engine</code></pre>
 <p>Read the <a href="/spec/">specification</a>, try the <a href="/play/">playground</a>, or read the <a href="${REPO}">source</a>. <span class="pill">CRUBAL 2 · 2026-10-27</span></p>
 <h2>Who's behind it</h2>
 <p>CRUBAL is an open specification, stewarded by <strong>Infinite Token</strong>, a development company. The spec, the corpus and the reference implementation are open to anyone to read, implement and build on.</p>`,
@@ -240,7 +240,7 @@ page(
       { "@type": "WebSite", name: "CRUBAL", url: `${ORIGIN}/`, publisher: STEWARD },
       {
         "@type": "SoftwareSourceCode",
-        name: "@cruba/crubal",
+        name: "@crubal/engine",
         description: "The CRUBAL reference implementation: read, print, check and run CRUBAL.",
         codeRepository: REPO,
         programmingLanguage: "TypeScript",
@@ -381,6 +381,6 @@ writeFileSync(
 writeFileSync(join(out, "robots.txt"), `# terms: public: search yes, answer yes, train yes\nUser-agent: *\nAllow: /\n\nSitemap: ${ORIGIN}/sitemap.xml\n`);
 writeFileSync(
   join(out, "llms.txt"),
-  `# CRUBAL\n\n> An open language and engine for data about any kind of thing. Everything is a key and a value. Stewarded by Infinite Token.\n\nThe specification is CC-BY-4.0. Read the chapters as Markdown:\n\n${chapters.map((c) => `- [${c.title}](${RAW}/spec/${c.file})`).join("\n")}\n\n## Implementing it\n\n- [Conformance test corpus](${REPO}/tree/main/corpus): ${total} cases, level by level\n- [Reference implementation](${REPO}/tree/main/packages/crubal): npm \`@cruba/crubal\`\n\n## Standard packages\n\n${stdPackages.map((p) => `- [${p.label}](${ORIGIN}/${p.name}/package.json): \`${p.id}\``).join("\n")}\n`,
+  `# CRUBAL\n\n> An open language and engine for data about any kind of thing. Everything is a key and a value. Stewarded by Infinite Token.\n\nThe specification is CC-BY-4.0. Read the chapters as Markdown:\n\n${chapters.map((c) => `- [${c.title}](${RAW}/spec/${c.file})`).join("\n")}\n\n## Implementing it\n\n- [Conformance test corpus](${REPO}/tree/main/corpus): ${total} cases, level by level\n- [Reference implementation](${REPO}/tree/main/packages/crubal): npm \`@crubal/engine\`\n\n## Standard packages\n\n${stdPackages.map((p) => `- [${p.label}](${ORIGIN}/${p.name}/package.json): \`${p.id}\``).join("\n")}\n`,
 );
 console.log(`built ${chapters.length} chapters, ${total} corpus cases, playground → site/dist`);

@@ -1,4 +1,4 @@
-import { publish as publishPackage } from "@cruba/crubal";
+import { publish as publishPackage } from "@crubal/engine";
 // The Postgres store against the memory engine. Skipped without CRUBAL_PG_URL. Every corpus log the
 // memory store can rebuild, the Postgres store must give back the same state from the same entries; the
 // journaled operations must write the same entries; redaction must hold the chain and forget the value.
@@ -9,17 +9,17 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { emptyDictionary, readDefinitions } from "@cruba/crubal";
-import { archive, attach, merge, type Store } from "@cruba/crubal";
-import { type Draft, Journal, rebuild, stateJson, type Entry } from "@cruba/crubal";
-import type { Json, JsonObject, Record } from "@cruba/crubal";
-import { MemoryRecords, serialize } from "@cruba/crubal";
-import { readContracts, sha256, verifyChain } from "@cruba/crubal";
-import { foldRecord } from "@cruba/crubal";
-import { readText } from "@cruba/crubal";
-import { readViews, type StreamEntry, Views } from "@cruba/crubal";
+import { emptyDictionary, readDefinitions } from "@crubal/engine";
+import { archive, attach, merge, type Store } from "@crubal/engine";
+import { type Draft, Journal, rebuild, stateJson, type Entry } from "@crubal/engine";
+import type { Json, JsonObject, Record } from "@crubal/engine";
+import { MemoryRecords, serialize } from "@crubal/engine";
+import { readContracts, sha256, verifyChain } from "@crubal/engine";
+import { foldRecord } from "@crubal/engine";
+import { readText } from "@crubal/engine";
+import { readViews, type StreamEntry, Views } from "@crubal/engine";
 import { connect, testSchema, type Pool } from "../src/db.ts";
-import { publish } from "@cruba/crubal";
+import { publish } from "@crubal/engine";
 import { borderOptions, PgBorder } from "../src/border.ts";
 import { copyWorking, Needs, WorkingRecords, workingState } from "../src/working.ts";
 import { PgStore, QuorumRefused } from "../src/store.ts";

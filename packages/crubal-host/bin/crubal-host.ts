@@ -6,7 +6,7 @@
 //   crubal-host key issue <owner> <caller>   an API key for a caller (printed once)
 //   crubal-host serve [--port 8787]          the HTTP surface (CRUBAL_HOST_OF=domain=url,… maps publishers not yet at https://<domain>)
 
-import { connect } from "@cruba/crubal-postgres";
+import { connect } from "@crubal/postgres";
 import { Host } from "../src/host.ts";
 import { serve } from "../src/server.ts";
 

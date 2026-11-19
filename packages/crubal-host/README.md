@@ -1,7 +1,7 @@
-# @cruba/crubal-host
+# @crubal/host
 
 The reference CRUBAL host (docs/design/host.md): what the specification hands the host, and nothing a
-business requires. It runs owners' stores on `@cruba/crubal-postgres`, proves who a caller is, resolves
+business requires. It runs owners' stores on `@crubal/postgres`, proves who a caller is, resolves
 secrets by name, acts through adapters, signs each owner's chain, installs published packages, publishes
 views and runs schedules, and serves one small HTTP surface. It owns no model: everything goes through
 `PgStore` and `PgBorder`, and what it keeps of its own (owners' keys, API keys, identity links) lives in

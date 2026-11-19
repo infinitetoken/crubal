@@ -1,6 +1,6 @@
 // me-reindex.ts: bring the local host index back to what the store holds: every view republished whole
 // with a reset, then applied to the index. CRUBAL_PG_SCHEMA=crubal_me node bench/me-reindex.ts [owner]
-import { connect, PgStore } from "@cruba/crubal-postgres";
+import { connect, PgStore } from "@crubal/postgres";
 import { Index } from "../src/indexer.ts";
 const pool = connect(process.env.CRUBAL_PG_URL ?? "postgres:///postgres", process.env.CRUBAL_PG_SCHEMA ?? "crubal_me");
 const owner = process.argv[2] ?? "mediaencyclopedia.com";

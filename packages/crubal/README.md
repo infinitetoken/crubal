@@ -1,4 +1,4 @@
-# @cruba/crubal
+# @crubal/engine
 
 The CRUBAL reference implementation. Pure functions, JSON in and JSON out, so a compiled core can replace
 the internals later behind the same API.
@@ -95,4 +95,4 @@ Needs Node 23.6 or later (it runs the TypeScript directly).
 | `src/views.ts` | shapes, views, filters, audiences and roles, projections and staleness (12) |
 | `src/corpus.ts` | the conformance runner (13) |
 
-Next: make the repo public, publish `@cruba/crubal`, and start crubal.com.
+Next: make the repo public, publish `@crubal/engine`, and start crubal.com.

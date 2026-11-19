@@ -4,16 +4,16 @@
 
 import { createHash, createPrivateKey, generateKeyPairSync, randomBytes, sign as edSign } from "node:crypto";
 import { ChainedSecrets, EnvSecrets, FunctionSecrets, type SecretStore } from "./secrets.ts";
-import { compareVersions } from "@cruba/crubal";
-import { type Offer, readBundle, restamp, verifyBorder, versionGate } from "@cruba/crubal";
-import { Access, type Record as CrubalRecord } from "@cruba/crubal";
-import type { StreamEntry } from "@cruba/crubal";
+import { compareVersions } from "@crubal/engine";
+import { type Offer, readBundle, restamp, verifyBorder, versionGate } from "@crubal/engine";
+import { Access, type Record as CrubalRecord } from "@crubal/engine";
+import type { StreamEntry } from "@crubal/engine";
 import { readFileSync } from "node:fs";
-import type { Json, JsonObject } from "@cruba/crubal";
-import { type Contract, type Keys, keyFor, publish, signBundle } from "@cruba/crubal";
-import { type Adapter, PgBorder, borderOptions } from "@cruba/crubal-postgres";
-import { type Client, migrate as migrateStore, type Pool, transaction } from "@cruba/crubal-postgres";
-import { PgStore } from "@cruba/crubal-postgres";
+import type { Json, JsonObject } from "@crubal/engine";
+import { type Contract, type Keys, keyFor, publish, signBundle } from "@crubal/engine";
+import { type Adapter, PgBorder, borderOptions } from "@crubal/postgres";
+import { type Client, migrate as migrateStore, type Pool, transaction } from "@crubal/postgres";
+import { PgStore } from "@crubal/postgres";
 import { type Connection, Credentials, type OAuthProvider, secretsKeyFrom } from "./credentials.ts";
 import type { EmergencyTerms } from "./emergency.ts";
 import { verifyRequest, signRequest } from "./signatures.ts";

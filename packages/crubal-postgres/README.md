@@ -1,4 +1,4 @@
-# @cruba/crubal-postgres
+# @crubal/postgres
 
 The persistent CRUBAL store on Postgres: the log as the truth, every other table a cache rebuilt from it.
 The design is in [docs/design/store.md](../../docs/design/store.md); this package is its first version.
@@ -14,7 +14,7 @@ The design is in [docs/design/store.md](../../docs/design/store.md); this packag
 - **`rebuild()`** empties the owner's state tables and applies the log again. **`verify(keys?)`** checks
   the chain's links and signatures. **`redact(logId, writeIndex?)`** replaces one write by its hash, or
   an entry by its hash (spec 8.5.2), then rebuilds, so the cache forgets what the log forgot.
-- **Nothing in here decides anything.** Folding, rules, access, lifecycle and views are `@cruba/crubal`'s
+- **Nothing in here decides anything.** Folding, rules, access, lifecycle and views are `@crubal/engine`'s
   and run unchanged; this package loads a working set, persists a difference and keeps the chain.
 
 ## Proof

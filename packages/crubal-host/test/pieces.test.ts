@@ -3,14 +3,14 @@
 // anywhere; the ones over the store skip without CRUBAL_PG_URL.
 
 import assert from "node:assert/strict";
-import { entryHash, keyFor, verifySig } from "@cruba/crubal";
+import { entryHash, keyFor, verifySig } from "@crubal/engine";
 import { createHmac, createPrivateKey, createSign, generateKeyPairSync, sign as edSign } from "node:crypto";
 import { after, before, test } from "node:test";
-import type { JsonObject } from "@cruba/crubal";
-import { connect, testSchema, type Pool } from "@cruba/crubal-postgres";
-import { PgBorder } from "@cruba/crubal-postgres";
-import { readContracts } from "@cruba/crubal";
-import { emptyDictionary, readDefinitions } from "@cruba/crubal";
+import type { JsonObject } from "@crubal/engine";
+import { connect, testSchema, type Pool } from "@crubal/postgres";
+import { PgBorder } from "@crubal/postgres";
+import { readContracts } from "@crubal/engine";
+import { emptyDictionary, readDefinitions } from "@crubal/engine";
 import { checkEmergency, edgeHash, endEmergencyEdge, logEmergencyRead, makeEmergencyEdge, type EmergencyRequest } from "../src/emergency.ts";
 import { Host } from "../src/host.ts";
 import { oidcVerifier, verifyJwt } from "../src/oidc.ts";

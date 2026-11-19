@@ -2,7 +2,7 @@
 // by a fresh store, and taken off when the carrier leaves. Skipped without CRUBAL_PG_URL.
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import { publish, shedBy, wearBy } from "@cruba/crubal";
+import { publish, shedBy, wearBy } from "@crubal/engine";
 import { connect, type Pool, testSchema } from "../src/db.ts";
 import { PgStore } from "../src/store.ts";
 
