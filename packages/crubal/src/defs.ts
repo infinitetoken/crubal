@@ -606,6 +606,9 @@ function readClass(node: Node): ClassDef {
 
 const SKIP = new Set(["rule", "contract", "view", "shape", "display", "print", "filter", "role", "migration", "package", "resolve", "permissions", "ownership", "emergency", "edge", "instructions", "utility", "group", "lane", "flow", "act", "subject"]); // "subject": the lane's first name (revision 9), carried unchanged in text already published
 
+/** Revision 58: a block a package brings under a prefix (`cfu:lane: name /version`), which this reader does not understand and carries (13.5). The prefix `crubal` is the core's and names no such block. */
+export const isPrefixedBlock = (key: string | null): key is string => !!key && /^[a-z][a-z0-9-]*:[a-z][\w-]*$/.test(key) && !key.startsWith("crubal:");
+
 /** Read definition text (facets, classes and kinds) into a dictionary. Other blocks are skipped. */
 /** The sorts of definition a link may name (4.2.2, revision 20): `&def:facet` holds a facet's key, never a record. */
 export const DEFINITION_SORTS = ["kind", "class", "facet", "utility", "event", "package", "lane", "form", "view", "print"] as const;
@@ -727,7 +730,7 @@ export function readDefinitions(source: string, into: Dictionary = emptyDictiona
         }
         continue;
       }
-      if (SKIP.has(node.key) || node.key === "crubal" || node.key === "owner") continue;
+      if (SKIP.has(node.key) || node.key === "crubal" || node.key === "owner" || isPrefixedBlock(node.key)) continue;
     }
     const f = readShorthand(node.text, node.line);
     into.facets.set(f.key, f);

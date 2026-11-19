@@ -261,7 +261,7 @@ A published version MUST NOT change. A mistake is fixed by a new version.
 ```
 
 The member sections (`kinds`, `facets`, `classes`, `rules`, `contracts`, `views`, `shapes`, `displays`,
-`prints`, `filters`, `roles`, `permissions`, `ownership`, `recipes`, `groups` (revision 57), `utilities`, `lanes`, `flows`) each hold their members'
+`prints`, `filters`, `roles`, `permissions`, `ownership`, `recipes`, `groups` (revision 57), `utilities`, `lanes`, `flows`, `blocks` (revision 58, 11.10)) each hold their members'
 JSON forms as the chapters define them. A utility with acts carries them as `"acts": ["pick", "pack"]`.
 
 ## 11.7 The home: crubal.com
@@ -397,3 +397,32 @@ spelling across every record it reached: an alias (the spelling joins a unit's `
 decision is a `review` write and a `define` write (chapter 8.5), and the held intakes replay. A store MAY
 look the spelling up (UN/CEFACT, UCUM, an AI) to **propose** an answer, shown beside the evidence; it never
 applies one. Nothing in the table is created because it was seen.
+
+## 11.10 A block under a prefix (revision 58)
+
+A package MAY carry a block the language does not name, under a prefix (13.5):
+
+```
+ui:row: ordersPlaced /2026-11-19
+  label: Placed orders
+  shows: order
+```
+
+Its first line is `<prefix>:<word>: <name> /<version>`: the prefix and the word lower-case, the name one
+word, the version as any member's. The prefix `crubal` is the core's and names no such block. A top-level
+block with no prefix that the language does not name stays refused.
+
+An implementation that does not own the prefix MUST read the first line and nothing inside the block, and
+MUST carry the inside as written: line by line, comments removed, indentation kept relative to the first
+line. It MUST NOT judge it. Whoever owns the prefix reads the lines and judges them; a refusal of theirs is
+not a refusal of the package.
+
+The block is a member, `block:<prefix>:<word>/<name>`, versioned by its own text like any other (11.4). It
+holds no value on any record, so it is added, changed and retired as a safe change with no recipe step
+(10.5). The same word and name twice in one package is refused; one name under two words is two blocks.
+
+In the JSON form (11.6) the bundle's `blocks` holds each as `{"block": "<prefix>:<word>/<name>",
+"version", "lines": [...]}`.
+
+This is the door a surface's own vocabulary comes through. What a screen draws (a row, a page, a print) is
+not the language's to name; a package says it under the surface's prefix, and the language carries it.
