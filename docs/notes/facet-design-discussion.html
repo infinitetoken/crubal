@@ -1,0 +1,224 @@
+<title>Facet Design Rules</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a working paper — what is wrong today, then one rule per facet type with a live example, then decisions. */
+:root{
+  --bg:#ffffff; --fg:#111311; --muted:#646a64; --border:rgba(0,0,0,.13); --card:#f4f6f3; --inset:rgba(0,0,0,.06);
+  --accent:#16a51a; --accent-fg:#fff; --open:#b38a00; --problem:#c4470f; --done:#4847c8; --ground:#eceee9;
+  --sans:"Atkinson Hyperlegible",ui-sans-serif,system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0b0c0b;--fg:#f2f4f1;--muted:#9aa19a;--border:rgba(255,255,255,.14);--card:#141614;--inset:rgba(255,255,255,.08);--accent:#33d13a;--accent-fg:#000;--open:#e7c64a;--problem:#ee8658;--done:#8d8ce6;--ground:#060706;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0b0c0b;--fg:#f2f4f1;--muted:#9aa19a;--border:rgba(255,255,255,.14);--card:#141614;--inset:rgba(255,255,255,.08);--accent:#33d13a;--accent-fg:#000;--open:#e7c64a;--problem:#ee8658;--done:#8d8ce6;--ground:#060706;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--fg);font-family:var(--sans);font-size:15.5px;line-height:1.5}
+.wrap{max-width:980px;margin:0 auto;padding-block:26px 64px;padding-inline:16px;display:flex;flex-direction:column;gap:22px}
+h1{margin:0;font-size:26px;text-wrap:balance}
+h2{margin:0;font-size:19px;text-wrap:balance}
+h3{margin:0;font-size:15px}
+p{margin:0;max-width:68ch}
+.muted{color:var(--muted)}
+.mono{font-family:var(--mono);font-size:.88em}
+.panel{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.issues{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+.issue{border:1px solid var(--border);border-left:4px solid var(--problem);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.issue b{font-size:14.5px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.tablewrap{overflow-x:auto}
+.type{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,360px);gap:16px;align-items:start}
+@media (max-width:760px){.type{grid-template-columns:minmax(0,1fr)}}
+.rule{display:flex;flex-direction:column;gap:8px}
+.rule ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.demo{border:1px solid var(--border);border-radius:12px;background:var(--card);padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.label{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);display:flex;gap:8px;align-items:center}
+.n{font:700 11px var(--mono);border-radius:999px;padding:1px 7px;background:var(--inset);color:var(--fg);text-transform:none;letter-spacing:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--border);background:var(--bg);color:var(--fg);border-radius:999px;padding:4px 12px;font:14px var(--sans);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.chip.add{border-style:dashed;color:var(--muted)}
+.seg{display:inline-flex;background:var(--inset);border-radius:8px;padding:2px;gap:2px}
+.seg button{border:0;background:none;color:var(--muted);font:700 12.5px var(--sans);padding:4px 10px;border-radius:6px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--bg);color:var(--fg)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+select,input[type=number],input[type=text]{font:15px var(--sans);color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 8px}
+.tiles{display:flex;gap:8px}
+.tile{width:68px;height:68px;border-radius:10px;border:1.5px dashed var(--border);display:grid;place-items:center;font-size:12px;color:var(--muted);background:var(--bg);text-align:center}
+.tile.full{border-style:solid;background:linear-gradient(135deg,#355a8a,#1f2f4a);color:#fff}
+.q{border:1px solid var(--border);border-left:4px solid var(--open);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.q ol{margin:0;padding-left:20px}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:6px">
+    <h1>Facet design rules</h1>
+    <p class="muted">From your note on the Unitizer ("Enums should ALL be bubble only. With an N indicator… Date pickers need to be able to pick date or year or month/year") and your three screenshots, plus a look at every facet on the live site. Part one is what is wrong today. Part two proposes one rule per facet type, each with a working example. Part three is what needs your decision.</p>
+  </header>
+
+  <!-- PART 1 -->
+  <section class="panel">
+    <h2>1 · What is wrong today</h2>
+    <p class="muted">The live dictionary has 196 facets: 65 text, 55 choice lists (enums), 37 modules, 23 measures, 18 yes/no, 6 images, 3 dates, 1 reference, 25 with no type set.</p>
+    <div class="issues">
+      <div class="issue"><b>Two sources disagree on the type</b><span>The dictionary says one type and a template's placement says another, so the screen guesses. 5 facets: <span class="mono">videoCodec</span> (text vs choice), <span class="mono">discFormat</span> (text vs choice), <span class="mono">hdrFormats</span> (text vs choice), <span class="mono">aspectRatio</span> (measure vs choice), <span class="mono">included</span> (yes/no vs choice).</span></div>
+      <div class="issue"><b>A choice list with no choices</b><span>Video Codec is placed as a choice list but has no values, only a rule that fills "MPEG-2" on DVDs. Nothing to draw as bubbles, so you saw an empty box.</span></div>
+      <div class="issue"><b>Bubbles plus a text box</b><span>Production Format draws its 14 bubbles and a text box under them, because it is set to allow additions. The box reads as a duplicate of the pick. 15 enums are set this way.</span></div>
+      <div class="issue"><b>Enums draw three different ways</b><span>Bubbles, a dropdown, or a scored ladder, chosen by size and settings. You asked for bubbles only.</span></div>
+      <div class="issue"><b>Dates are all-or-nothing</b><span>Every date is a full day picker. Release years and month/year dates are common on discs and games, and a day picker forces a made-up day.</span></div>
+      <div class="issue"><b>25 facets have no type</b><span>They fall back to a plain text box whatever they hold.</span></div>
+    </div>
+  </section>
+
+  <!-- PART 2 -->
+  <section class="panel">
+    <h2>2 · One rule per type</h2>
+    <p class="muted">The type comes from <b>one</b> place, the dictionary. A template placement can change only placement things (where it is collected, the photo frame, gates), never the type. Each rule below is what every facet of that type looks like, everywhere: the Unitizer, the Editor, the product page.</p>
+
+    <div class="type">
+      <div class="rule">
+        <h3>Choice list (enum) — bubbles only</h3>
+        <ul>
+          <li>Always bubbles. No dropdowns, no separate box under them.</li>
+          <li>An <b>N indicator</b> beside the name says how many may be picked: <span class="mono">pick 1</span>, <span class="mono">pick up to 3</span>, or <span class="mono">pick any</span>.</li>
+          <li>Pick 1: tapping another bubble moves the pick. Pick up to N: a further tap past N is refused with a shake and "up to 3".</li>
+          <li>Allow additions becomes a last bubble, <b>＋ Other…</b>, which opens a one-line box only when tapped. The new value joins the list as a bubble.</li>
+          <li>Long lists (more than about 20) get a filter line above the bubbles, still bubbles.</li>
+          <li>A choice list with no values is refused in the dictionary until it has some.</li>
+        </ul>
+      </div>
+      <div class="demo" aria-label="Choice list examples">
+        <div class="label">Production format <span class="n" id="n1">pick 1</span></div>
+        <div class="chips" id="enumOne" data-max="1"></div>
+        <div class="label" style="margin-top:6px">Audio languages <span class="n" id="n2">pick up to 3</span></div>
+        <div class="chips" id="enumMany" data-max="3"></div>
+        <span class="muted" id="enumMsg" style="font-size:13px" aria-live="polite"></span>
+      </div>
+    </div>
+
+    <div class="type">
+      <div class="rule">
+        <h3>Date — set how precise it is</h3>
+        <ul>
+          <li>Each date facet has a <b>precision</b> set in the dictionary: <b>Year</b>, <b>Month and year</b>, or <b>Full date</b>.</li>
+          <li>Or <b>Any</b>: the field shows a three-way switch and you pick how much you know, per product.</li>
+          <li>Stored as written: <span class="mono">1989</span>, <span class="mono">1989-11</span> or <span class="mono">1989-12-01</span>. Sorting and filters treat 1989 as the whole year.</li>
+          <li>Shown as written too: "1989", "Nov 1989", "Dec 1, 1989". No made-up days.</li>
+        </ul>
+      </div>
+      <div class="demo" aria-label="Date example">
+        <div class="label">Release date <span class="n">any precision</span></div>
+        <div class="seg" role="group" aria-label="How much you know" id="prec">
+          <button type="button" aria-pressed="true" data-p="y">Year</button>
+          <button type="button" aria-pressed="false" data-p="m">Month + year</button>
+          <button type="button" aria-pressed="false" data-p="d">Full date</button>
+        </div>
+        <div class="row" id="dateInputs"></div>
+        <span class="muted" style="font-size:13px">Stored: <b class="mono" id="dateOut">1989</b></span>
+      </div>
+    </div>
+
+    <div class="type">
+      <div class="rule">
+        <h3>Image — the same control everywhere</h3>
+        <ul>
+          <li>One row: the photos as tiles, then one camera tile, then ⋯ for a file or a link (built last round).</li>
+          <li>Every image facet draws this, Packaged Image and Contents Image alike. Contents was a text field in the dictionary; it is fixed.</li>
+          <li>The facet's photos are the product's stock photos. The unit's own photos stay in the unit's photo slots, which carry the same names.</li>
+          <li>Open question below: should a product's image facet and the unit photo slot be one thing?</li>
+        </ul>
+      </div>
+      <div class="demo" aria-label="Image example">
+        <div class="label">Packaged image <span class="n">any number</span></div>
+        <div class="tiles"><div class="tile full">photo</div><div class="tile">📷<br>Capture</div><div class="tile">⋯<br>More</div></div>
+      </div>
+    </div>
+
+    <div class="type">
+      <div class="rule">
+        <h3>Yes / no</h3>
+        <ul>
+          <li>Three bubbles: Yes · No · Unset. Same look as a pick-1 choice list.</li>
+          <li>Custom words allowed (e.g. Sealed · Opened) from the dictionary.</li>
+        </ul>
+      </div>
+      <div class="demo"><div class="label">Flipper</div><div class="chips" id="bool"></div></div>
+    </div>
+
+    <div class="type">
+      <div class="rule">
+        <h3>Measure</h3>
+        <ul>
+          <li>A number with its unit beside it (min, lb, in, $), the unit from the dictionary.</li>
+          <li>A slider only when the dictionary sets a range; otherwise just the number.</li>
+        </ul>
+      </div>
+      <div class="demo"><div class="label">Runtime</div><div class="row"><input type="number" id="rt" value="97" style="width:90px" aria-label="Runtime"><span class="muted">min</span></div></div>
+    </div>
+
+    <div class="type">
+      <div class="rule">
+        <h3>Text</h3>
+        <ul>
+          <li>One line, or a box for longer text when the dictionary allows more than about 80 characters.</li>
+          <li>Many values (e.g. cast names) become chips you add one by one.</li>
+          <li>The 25 untyped facets need a type before they show anything other than this.</li>
+        </ul>
+      </div>
+      <div class="demo"><div class="label">Edition name</div><input type="text" id="ed" value="Collector's Edition" aria-label="Edition name"></div>
+    </div>
+  </section>
+
+  <!-- PART 3 -->
+  <section class="panel">
+    <h2>3 · What needs your decision</h2>
+    <div class="q"><b>A. One source for the type</b><span>Should the dictionary be the only place a facet's type is set, with templates unable to change it? The 5 disagreeing facets would then follow their dictionary entry, and I would list each one for you to confirm (Video Codec as a choice list needs its values written: MPEG-2, H.264, VC-1, HEVC, AV1…).</span></div>
+    <div class="q"><b>B. Enums: bubbles only, with an N indicator</b><span>Agree with the rule as drawn (pick 1 / up to N / any, "＋ Other…" as a bubble for lists that allow additions, a filter over very long lists)? Is "up to N" set in the dictionary per facet?</span></div>
+    <div class="q"><b>C. Date precision</b><span>Should precision be set per facet (Year, Month + year, Full date) with "Any" as the option that shows the switch? Which do you want for Release date, Theatrical release date and Launch date?</span></div>
+    <div class="q"><b>D. Image facets vs unit photo slots</b><span>Today a product's Packaged Image facet (stock photos) and a unit's Packaged photo slot (this copy) are separate, linked only by the Queue proposing unit photos for the product. Keep them separate, or make the product's image facet simply show its slot's accepted photos?</span></div>
+    <div class="q"><b>E. Scored choice lists</b><span>A few enums are "scored" (each pick also gets a 0–10 grade, drawn as a ladder). Keep that as the one exception to bubbles-only, or draw it as bubbles with a small grade under each pick?</span></div>
+  </section>
+</div>
+
+<script>
+(function(){
+  const msg = document.getElementById("enumMsg");
+  function chips(el, values, picked){
+    const max = Number(el.dataset.max || 1);
+    el.innerHTML = values.map(v => `<button type="button" class="chip${v.startsWith("＋") ? " add" : ""}" aria-pressed="${picked.includes(v)}">${v}</button>`).join("");
+    el.onclick = (e) => {
+      const b = e.target.closest("button"); if (!b) return;
+      const v = b.textContent;
+      if (v.startsWith("＋")) { msg.textContent = "A one-line box opens here; the new value becomes a bubble."; return; }
+      let p = [...el.querySelectorAll('[aria-pressed="true"]')].map(x => x.textContent);
+      if (p.includes(v)) p = p.filter(x => x !== v);
+      else if (max === 1) p = [v];
+      else if (p.length >= max) { msg.textContent = `Up to ${max} — tap one to drop it first.`; b.animate?.([{transform:"translateX(-3px)"},{transform:"translateX(3px)"},{transform:"none"}],{duration:200}); return; }
+      else p.push(v);
+      msg.textContent = "";
+      chips(el, values, p);
+    };
+  }
+  chips(document.getElementById("enumOne"), ["Full Length Movie","Multi Part Series","Shorts","Documentary","Special","Episode","Music","＋ Other…"], ["Full Length Movie"]);
+  chips(document.getElementById("enumMany"), ["English","Spanish","French","German","Japanese","Italian"], ["English","Spanish"]);
+  const bool = document.getElementById("bool"); bool.dataset.max = "1";
+  chips(bool, ["Yes","No","Unset"], ["Unset"]);
+
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const prec = document.getElementById("prec"), wrap = document.getElementById("dateInputs"), out = document.getElementById("dateOut");
+  let p = "y";
+  function render(){
+    const y = `<input type="number" id="dy" value="1989" min="1900" max="2100" style="width:90px" aria-label="Year">`;
+    const m = `<select id="dm" aria-label="Month">${months.map((x,i)=>`<option value="${String(i+1).padStart(2,"0")}"${i===10?" selected":""}>${x}</option>`).join("")}</select>`;
+    const d = `<input type="number" id="dd" value="1" min="1" max="31" style="width:70px" aria-label="Day">`;
+    wrap.innerHTML = p === "y" ? y : p === "m" ? m + y : m + d + y;
+    const upd = () => {
+      const yy = document.getElementById("dy").value, mm = document.getElementById("dm")?.value, dd = document.getElementById("dd")?.value;
+      out.textContent = p === "y" ? yy : p === "m" ? `${yy}-${mm}` : `${yy}-${mm}-${String(dd).padStart(2,"0")}`;
+    };
+    wrap.oninput = upd; upd();
+  }
+  prec.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; p = b.dataset.p; prec.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); render(); };
+  render();
+})();
+</script>

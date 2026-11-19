@@ -1,0 +1,434 @@
+<title>Facet Language Draft</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a language design paper — sources first (schema.org, Wikidata, CRUBAL), then the two writing methods side by
+   side, the symbol table, self-describing values, influence and aliases, a full worked product, and the open calls. */
+:root{
+  --bg:#ffffff; --fg:#121412; --muted:#626862; --border:rgba(0,0,0,.13); --card:#f3f5f2; --inset:rgba(0,0,0,.06);
+  --accent:#138a17; --accent-soft:rgba(19,138,23,.1); --sym:#6b3fb8; --open:#a77f00; --ground:#e9ece7;
+  --sans:"Atkinson Hyperlegible",ui-sans-serif,system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0b0c0b;--fg:#eef1ed;--muted:#9aa19a;--border:rgba(255,255,255,.14);--card:#141614;--inset:rgba(255,255,255,.08);--accent:#3ad140;--accent-soft:rgba(58,209,64,.12);--sym:#b99cf0;--open:#e4c24a;--ground:#060706;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0b0c0b;--fg:#eef1ed;--muted:#9aa19a;--border:rgba(255,255,255,.14);--card:#141614;--inset:rgba(255,255,255,.08);--accent:#3ad140;--accent-soft:rgba(58,209,64,.12);--sym:#b99cf0;--open:#e4c24a;--ground:#060706;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--fg);font-family:var(--sans);font-size:15.5px;line-height:1.55}
+main{max-width:1000px;margin:0 auto;padding-block:28px 72px;padding-inline:16px;display:flex;flex-direction:column;gap:18px}
+h1{margin:0;font-size:28px;text-wrap:balance}
+h2{margin:0;font-size:20px;display:flex;gap:10px;align-items:baseline;text-wrap:balance}
+h2 .k{font:600 13px var(--mono);color:var(--accent)}
+h3{margin:0;font-size:15.5px}
+p{margin:0;max-width:70ch}
+.muted{color:var(--muted)}
+.mono,code{font-family:var(--mono);font-size:.88em}
+section{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:12px}
+ul,ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px;max-width:74ch}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.card{border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--card);display:flex;flex-direction:column;gap:6px;min-width:0}
+.card h3{display:flex;gap:8px;align-items:center}
+.take{font-size:13.5px;border-top:1px solid var(--border);padding-top:6px;margin-top:2px}
+.take b{color:var(--accent)}
+pre{margin:0;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;overflow-x:auto;font:13.5px/1.6 var(--mono);min-width:0}
+pre .c{color:var(--muted)}
+pre .s{color:var(--sym);font-weight:600}
+pre .k{color:var(--accent)}
+.tablewrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:0}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--card)}
+td.sym{font:700 15px var(--mono);color:var(--sym);white-space:nowrap}
+.callout{border-left:4px solid var(--accent);background:var(--accent-soft);border-radius:0 10px 10px 0;padding:10px 14px;max-width:78ch}
+.q{border:1px solid var(--border);border-left:4px solid var(--open);border-radius:10px;padding:10px 14px;display:flex;flex-direction:column;gap:4px}
+.rec{font-size:13.5px;color:var(--muted)}
+.rec::before{content:"Recommendation: ";font-weight:700;color:var(--fg)}
+.try{display:flex;flex-direction:column;gap:8px}
+.try textarea{width:100%;min-height:96px;font:13.5px/1.55 var(--mono);color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px;resize:vertical}
+.try output{display:block}
+</style>
+
+<main>
+  <header style="display:flex;flex-direction:column;gap:8px">
+    <h1>A facet language: one small syntax for keys, values and their definitions</h1>
+    <p class="muted">Working draft for discussion, Oct 13, 2026. Before building facets v2.0, you asked to learn from schema.org and Wikidata, keep it very simple, write it two ways (spelled-out keys, or short symbols), let facets and values carry their own definitions, track which class or module shaped each facet, handle aliases, and see whether CRUBAL still fits. Working name below: <b>CRUBAL 2</b>. The name is yours to pick.</p>
+  </header>
+
+  <section>
+    <h2><span class="k">1</span>What the three systems teach</h2>
+    <div class="grid3">
+      <div class="card">
+        <h3>schema.org</h3>
+        <ul>
+          <li><b>Types in a tree:</b> Thing → CreativeWork → Movie. A thing can have several types.</li>
+          <li><b>Properties name what they apply to and what they hold</b> (<code>actor</code>: on a Movie, holds a Person).</li>
+          <li><b>Plain data types</b>: Text, Number, Date, Boolean, URL.</li>
+          <li><b>Enumerations</b> as named members (ItemAvailability → InStock).</li>
+          <li><b>QuantitativeValue</b>: a value with a unit code.</li>
+          <li><b>sameAs</b> links a thing to the same thing elsewhere; <b>Role</b> adds detail to a link (actor + character name).</li>
+        </ul>
+        <p class="take"><b>Take:</b> the class tree, and the vocabulary search engines read. We already write schema.org for Google; every facet should say which schema.org property it is.</p>
+      </div>
+      <div class="card">
+        <h3>Wikidata</h3>
+        <ul>
+          <li><b>Everything has an ID</b>: items <code>Q…</code>, properties <code>P…</code>. Names are labels, with aliases.</li>
+          <li><b>A statement</b> = property + value + <b>qualifiers</b> (detail) + <b>references</b> (where from) + <b>rank</b>.</li>
+          <li><b>Each property has a data type</b>: item, text, quantity with unit, URL, external ID with a link template, media file.</li>
+          <li><b>Time carries a precision</b>: year, month or day. This answers the date question.</li>
+          <li><b>Two kinds of empty:</b> "some value" (exists, unknown) and "no value" (does not apply).</li>
+          <li><b>Constraints</b> as data: allowed values, one value only, format pattern.</li>
+          <li>"instance of" and "subclass of" make the tree.</li>
+        </ul>
+        <p class="take"><b>Take:</b> IDs and aliases at both levels, date precision, the two kinds of empty, qualifiers, external IDs with link templates, constraints as data.</p>
+      </div>
+      <div class="card">
+        <h3>CRUBAL (ours, 2026)</h3>
+        <ul>
+          <li><b>Key/value pairs</b> with a firewall between a key's definition and its values.</li>
+          <li><b>Facet · Module · Housing</b>: a facet points at a reusable shape (scale, boolean, input, log, price); modules group facets in order.</li>
+          <li><b>Values nest</b> (a disc inside a case inside a set).</li>
+          <li><b>Reference triad</b>: <code>ref</code> (one of our products), <code>url</code> (a web page), <code>query</code> (computed).</li>
+          <li><b>Provenance</b>: where a value came from (seller, AI, import, template).</li>
+          <li><b>Key known, value unknown</b>: an empty key is valid and is the fetch list.</li>
+        </ul>
+        <p class="take"><b>Take:</b> all of it. Our <code>metadata</code> documents are still CRUBAL key/value pairs. What CRUBAL lacked was IDs, versions, aliases, precision, influence tracking and a written syntax.</p>
+      </div>
+    </div>
+    <div class="callout"><b>Does CRUBAL still hold?</b> Yes, as the base. Every product and unit already stores CRUBAL-style key/value pairs, and its firewall, housings, nesting, reference triad, provenance and null floor are all in the live system under other names. CRUBAL 2 is CRUBAL plus a written syntax and the Wikidata and schema.org pieces it was missing. Nothing about it requires changing how values are stored.</div>
+  </section>
+
+  <section>
+    <h2><span class="k">2</span>The two methods</h2>
+    <p>Every statement can be written <b>spelled out</b> (keys and words) or <b>in symbols</b> (one compact line). Both read into the same definition, so you can type whichever is faster and the system can print either back.</p>
+    <div class="grid2">
+      <div>
+        <h3 style="margin-bottom:6px">Spelled out (the key method)</h3>
+<pre><span class="k">facet</span> videoCodec "Video codec"
+  <span class="k">type</span> choice, <span class="k">pick</span> 1
+  <span class="k">values</span> MPEG-2, H.264, VC-1, HEVC, AV1
+  <span class="k">aliases</span> codec, "Video Format"
+  <span class="k">same as</span> schema:encodingFormat
+  <span class="k">from</span> Optical Disc</pre>
+      </div>
+      <div>
+        <h3 style="margin-bottom:6px">In symbols (the function method)</h3>
+<pre>videoCodec<span class="s">{</span>MPEG-2<span class="s">|</span>H.264<span class="s">|</span>VC-1<span class="s">|</span>HEVC<span class="s">|</span>AV1<span class="s">}</span><span class="s">*1</span>
+  <span class="s">~</span>codec <span class="s">~</span>"Video Format"
+  <span class="s">=</span>schema:encodingFormat <span class="s">&lt;</span>OpticalDisc</pre>
+      </div>
+    </div>
+    <p class="muted">Values on a product are one line each either way: <code>videoCodec: H.264</code>. Any key can be replaced by its ID: <code>F-7KQ2: H.264</code>.</p>
+  </section>
+
+  <section>
+    <h2><span class="k">3</span>The symbols (all of them)</h2>
+    <p>Twelve marks, each meaning one thing. A <b>suffix</b> says what a facet holds, a <b>prefix</b> says where it lives, and a <b>tail</b> says where it came from.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Mark</th><th>Place</th><th>Means</th><th>Spelled out</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td class="sym">$</td><td>suffix</td><td>text</td><td>type text</td><td><code>editionName$</code></td></tr>
+        <tr><td class="sym"># unit</td><td>suffix</td><td>number, with its unit</td><td>type measure, unit min</td><td><code>runtime#min</code> · <code>weight#lb</code></td></tr>
+        <tr><td class="sym">@ y|ym|ymd|any</td><td>suffix</td><td>date, with its precision (Wikidata's year/month/day)</td><td>type date, precision month</td><td><code>launchDate@ym</code></td></tr>
+        <tr><td class="sym">?</td><td>suffix</td><td>yes / no</td><td>type yes-no</td><td><code>isFlipper?</code></td></tr>
+        <tr><td class="sym">{a|b}</td><td>suffix</td><td>choice list, its values</td><td>type choice, values a, b</td><td><code>region{A|B|C}</code></td></tr>
+        <tr><td class="sym">&amp; Type</td><td>suffix</td><td>reference to a thing (a product, person, company, web page)</td><td>type reference to Person</td><td><code>director&amp;Person</code> · <code>imdb&amp;url</code></td></tr>
+        <tr><td class="sym">^</td><td>suffix</td><td>image</td><td>type image</td><td><code>packagedImage^</code></td></tr>
+        <tr><td class="sym">( … )</td><td>suffix</td><td>module: facets inside a group</td><td>module … end</td><td><code>cast(person&amp;Person character$)</code></td></tr>
+        <tr><td class="sym">*N  *+</td><td>suffix</td><td>how many: one, up to N, any</td><td>pick 1 / up to 3 / any</td><td><code>languages{…}*3</code> · <code>cast(…)*+</code></td></tr>
+        <tr><td class="sym">.</td><td>prefix</td><td>collected on the <b>unit</b> (no dot = the product)</td><td>on unit</td><td><code>.grade{NM|VG|G|F|P}</code></td></tr>
+        <tr><td class="sym">!</td><td>prefix</td><td>required to be complete</td><td>required</td><td><code>!title$</code></td></tr>
+        <tr><td class="sym">~  =  &lt;</td><td>tail</td><td><code>~</code> alias · <code>=</code> same as (schema.org / Wikidata) · <code>&lt;</code> from (class or module)</td><td>aliases · same as · from</td><td><code>~Runtime =wd:P2047 &lt;Movie</code></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2><span class="k">4</span>Values that carry their own definition</h2>
+    <p>A value's shape says what it is, so a value read on its own (in a note, an import, an eBay export) can be checked and typed without looking anything up.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Written</th><th>Reads as</th><th>From</th></tr></thead>
+      <tbody>
+        <tr><td><code>1989</code> · <code>1989-11</code> · <code>1989-12-01</code></td><td>a year · a month · a day: the precision is in the value</td><td>Wikidata time precision</td></tr>
+        <tr><td><code>97min</code> · <code>2.4lb</code> · <code>$12.50</code></td><td>a measure with its unit</td><td>schema.org QuantitativeValue</td></tr>
+        <tr><td><code>yes</code> · <code>no</code></td><td>yes / no</td><td></td></tr>
+        <tr><td><code>?</code></td><td>exists but unknown (key known, value unknown)</td><td>Wikidata "some value", CRUBAL null floor</td></tr>
+        <tr><td><code>-</code></td><td>does not apply</td><td>Wikidata "no value"</td></tr>
+        <tr><td><code>&amp;P-4QX7</code> · <code>&amp;wd:Q123</code> · <code>&amp;https://…</code></td><td>a reference: one of ours, a Wikidata item, a web page</td><td>CRUBAL reference triad</td></tr>
+        <tr><td><code>V-2HDK</code></td><td>a choice-list value by ID (survives renames)</td><td>Wikidata items</td></tr>
+        <tr><td><code>"Collector's Edition"</code></td><td>text (quotes only when it has spaces or marks)</td><td></td></tr>
+      </tbody>
+    </table></div>
+    <p class="muted">Extras on one value, Wikidata-style qualifiers, go in square brackets after it: <code>releaseDate: 1989-12-01 [region US, source pricing]</code>.</p>
+  </section>
+
+  <section>
+    <h2><span class="k">5</span>Tracking class and module influence</h2>
+    <p>Every facet on a product records which class or module put it there, and how each one shaped it. The tail <code>&lt;</code> says who introduced it; a class that narrows a facet writes the narrowing beside its own name.</p>
+<pre><span class="c"># the dictionary says what a format can ever be</span>
+format{DVD|Blu-ray|4K|HD-DVD|VHS|LaserDisc}*+
+
+<span class="c"># classes narrow it; each narrowing is recorded with the class</span>
+<span class="k">class</span> OpticalDisc <span class="s">&lt;</span>VideoRelease
+  format{DVD|Blu-ray|4K|HD-DVD}            <span class="c"># narrows: no tape</span>
+  videoCodec{MPEG-2|H.264|VC-1|HEVC|AV1}*1
+
+<span class="k">class</span> Movie
+  !title$  releaseDate@any  runtime#min  cast(person&amp;Person character$)*+</pre>
+    <p>On a product, each value can be traced back:</p>
+<pre>format: Blu-ray        <span class="c"># allowed by: dictionary → narrowed by OpticalDisc</span>
+videoCodec: H.264      <span class="c"># introduced by OpticalDisc</span>
+runtime: 97min         <span class="c"># introduced by Movie</span></pre>
+    <p class="muted">The rule from the live system holds: a class may only narrow what the dictionary allows (fewer values, a lower "pick up to", a tighter precision), never widen it. The language makes that check mechanical.</p>
+  </section>
+
+  <section>
+    <h2><span class="k">6</span>Aliases</h2>
+    <ul>
+      <li><b>Key aliases</b> (<code>~</code>): other spellings of a facet. <code>runtime#min ~Runtime ~runtime_min ~"Run time"</code>. An import using any alias lands on <code>runtime</code>.</li>
+      <li><b>Value aliases</b>: inside a choice list, <code>=</code> joins spellings to one value. <code>aspect{16:9=16x9=Widescreen|4:3=Fullscreen}</code>.</li>
+      <li><b>IDs never change</b>; labels and aliases are free to edit, and a rename is just a new label.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="k">7</span>A whole product, both ways</h2>
+    <div class="grid2">
+<pre><span class="c"># National Lampoon's Christmas Vacation [Blu-ray]</span>
+title: "National Lampoon's Christmas Vacation"
+releaseDate: 1989-12-01
+theatricalReleaseDate: 1989-12-01 [region US]
+format: Blu-ray
+videoCodec: VC-1
+runtime: 97min
+studio: &amp;wd:Q126399            <span class="c"># Warner Bros.</span>
+cast: (person &amp;wd:Q311319, character "Clark Griswold")
+cast: (person &amp;wd:Q232327, character "Ellen Griswold")
+isFlipper: no
+regionCode: A
+packagedImage: &amp;img:7d1e…
+.grade: VG                      <span class="c"># this unit</span>
+.included: (part case, condition NM)</pre>
+<pre><span class="c"># the same, as stored today (no change)</span>
+{
+  "title": "National Lampoon's …",
+  "releaseDate": "1989-12-01",
+  "format": ["Blu-ray"],
+  "videoCodec": "VC-1",
+  "runtime": 97,
+  "cast": [
+    {"person": "…", "character": "Clark Griswold"},
+    {"person": "…", "character": "Ellen Griswold"}
+  ],
+  "isFlipper": false,
+  "regionCode": "A"
+}</pre>
+    </div>
+    <p class="muted">The language is how people and tools read and write facets. Storage stays the JSON key/value documents already in the database; one reader and one printer convert between the two.</p>
+  </section>
+
+  <section>
+    <h2><span class="k">8</span>Try the symbol method</h2>
+    <div class="try">
+      <label for="src" class="muted">Type a facet in symbols; it is spelled out underneath.</label>
+      <textarea id="src" spellcheck="false">.grade{NM|VG|G|F|P}*1 ~condition =schema:itemCondition &lt;Unit</textarea>
+      <pre id="out" aria-live="polite"></pre>
+    </div>
+  </section>
+
+  <section id="transport">
+    <h2><span class="k">9</span>Transport and map: every system is a contract</h2>
+    <p>The language is not only for describing products. Its main job is <b>transport</b>: moving data between systems that each keep their own fields. Today every pair of systems needs its own hand-written bridge (Unitizer → label printer, product → eBay, location → Shippo, product → Google). Ten systems that all talk to each other need up to 45 bridges, and the number grows with the square of the systems. With facets in the middle, each system declares <b>one map</b> to the facets, and ten systems need ten maps.</p>
+    <div class="grid2">
+<pre><span class="c"># today: N² — every pair wired by hand</span>
+Unitizer ──→ Label printer
+Unitizer ──→ eBay
+Product  ──→ eBay
+Product  ──→ Google Merchant
+Location ──→ Shippo
+Order    ──→ Shippo
+ … one bridge per pair</pre>
+<pre><span class="c"># v2: N — each system maps once, to facets</span>
+Label printer ─┐
+eBay          ─┤
+Google        ─┼──  <span class="k">facets</span>  ──┬─ Product
+Shippo        ─┤              ├─ Unit
+Pricer        ─┘              ├─ Location
+                              └─ Order</pre>
+    </div>
+
+    <h3>A contract is a system declaring its variables and its map</h3>
+    <p>Every functional system (a printer, a shipping service, eBay, the pricer, a screen) publishes one contract in the same language: what it <b>needs</b>, what it <b>gives back</b>, how each of its own fields <b>maps</b> to a facet, <b>when</b> it may run and <b>who</b> may run it. That is the "smart contract": a declaration the system enforces, so a caller that satisfies it can use the system without knowing anything else about it.</p>
+<pre><span class="k">contract</span> Shippo.label
+  <span class="k">needs</span>  !shipFrom(line1$ city$ state$ zip$)  !shipTo(line1$ city$ state$ zip$)  !parcel.weight#oz
+  <span class="k">gives</span>  trackingNumber$  label^  postage#usd
+  <span class="k">map</span>    address_from.street1 <span class="s">&lt;-</span> shipFrom.line1
+         address_from.zip     <span class="s">&lt;-</span> shipFrom.zip
+         mass_unit "oz", weight <span class="s">&lt;-</span> parcel.weight      <span class="c"># the language converts lb → oz</span>
+         tracking_number      <span class="s">-&gt;</span> trackingNumber
+  <span class="k">when</span>   order.status = paid
+  <span class="k">who</span>    seller
+
+<span class="k">contract</span> Location                               <span class="c"># an object maps its own columns once</span>
+  <span class="k">map</span>    location.line1 <span class="s">&lt;-&gt;</span> shipFrom.line1   location.zip <span class="s">&lt;-&gt;</span> shipFrom.zip
+
+<span class="k">contract</span> eBay.listing
+  <span class="k">needs</span>  !title$*80  !format  !condition  price#usd
+  <span class="k">map</span>    Title <span class="s">&lt;-</span> title
+         "Format" <span class="s">&lt;-</span> format { DVD <span class="s">=&gt;</span> "DVD" | Blu-ray <span class="s">=&gt;</span> "Blu-ray" | 4K <span class="s">=&gt;</span> "4K UHD Blu-ray" }   <span class="c"># a value map</span>
+         ConditionID <span class="s">&lt;-</span> .grade { NM <span class="s">=&gt;</span> 2750 | VG <span class="s">=&gt;</span> 4000 | G <span class="s">=&gt;</span> 5000 }</pre>
+    <p class="muted">Shippo and Location never mention each other. Both map to <code>shipFrom</code>; a fourth location type, or a second carrier, is one more contract and nothing else changes.</p>
+
+    <h3>Four new marks, only inside contracts</h3>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Mark</th><th>Means</th></tr></thead>
+      <tbody>
+        <tr><td class="sym">&lt;-</td><td>read in: the system's field is filled from the facet</td></tr>
+        <tr><td class="sym">-&gt;</td><td>write out: the system's result is written to the facet</td></tr>
+        <tr><td class="sym">&lt;-&gt;</td><td>both ways: the object stores it, the facet carries it (today's <code>residence</code> + <code>flow</code>)</td></tr>
+        <tr><td class="sym">=&gt;</td><td>value map: our value becomes the other system's value</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Machinery is the same thing, inside our own house</h3>
+    <ul>
+      <li><b>Machinery facets already exist:</b> settings Classes are "a roster that directs a service" (rack slots, printers, the unit series). In the language they are contracts whose variables are settings: <code>contract LabelPrinter needs !sku$ price#usd barcode$ title$*32 gives printed?</code>.</li>
+      <li><b>The map is data, not code.</b> Today <code>facet_curation</code> already says where a facet lives and which side is the truth (<code>residence</code>, <code>residence_ref</code>, <code>flow</code>), for products only. Contracts are that idea for every system.</li>
+      <li><b>Checking is free.</b> Before a system runs, the contract tells you what is missing ("eBay needs Format; this product has none"), which is the completeness check the dictionary already does, aimed at a destination.</li>
+      <li><b>The UI assembles itself.</b> A screen that runs a contract shows its needs, using each facet's own widget. No hand-built form per destination (your "build the engine, not the example" rule).</li>
+      <li><b>Versions apply.</b> A contract is versioned like a facet; a breaking change to eBay's contract (a renamed specific) is one map edit, seen and dated.</li>
+    </ul>
+  </section>
+
+  <section id="ucp">
+    <h2><span class="k">10</span>Lining up with UCP (Shopify + Google, Jan 11, 2026)</h2>
+    <p>The Universal Commerce Protocol (<a href="https://ucp.dev/latest/specification/overview/">ucp.dev</a>) is the published standard for systems and AI agents buying from any store. It already does, for commerce systems, what section 9 proposes for facets: every party publishes a declaration of what it can do, the two sides compare declarations, and only the overlap is used. We should speak it, and borrow its rules.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>UCP does</th><th>What it means for us</th></tr></thead>
+      <tbody>
+        <tr><td><b>A profile at <code>/.well-known/ucp</code></b>: each business and each agent publishes its services and capabilities, each with a link to its schema.</td><td>Our <b>contracts</b>. Every system publishes one declaration; ours can be served the same way so outside agents read our catalog without custom work.</td></tr>
+        <tr><td><b>Reverse-domain names</b>: <code>dev.ucp.shopping.checkout</code>, <code>com.vendor.…</code>. Whoever owns the domain owns the name; no central registry.</td><td>Facets and contracts get an owner prefix: <code>com.mediaencyclopedia.videoCodec</code>. Ours, eBay's and schema.org's sit side by side without clashing. Inside our own system the short form <code>videoCodec</code> stays.</td></tr>
+        <tr><td><b>Date versions</b> (<code>2026-01-11</code>) on the protocol and on each capability separately.</td><td>Facet and contract versions dated the same way: <code>videoCodec@2026-10-13</code>, each facet on its own clock.</td></tr>
+        <tr><td><b>Extensions</b> name the capability they <code>extends</code> and add fields to it; schemas compose by stacking.</td><td>Exactly our class/module influence: a class <code>extends</code> another and adds or narrows facets. Same word, same rule.</td></tr>
+        <tr><td><b>Negotiation</b>: keep only what both sides list, pick the newest version both support, drop extensions whose parent is gone.</td><td>The contract check: what a destination needs, intersected with what a product carries, shows what is missing before anything runs.</td></tr>
+        <tr><td><b>A reserved <code>ucp</code> envelope</b> on every response saying which version and capabilities were used.</td><td>Everything we send out can say which facet versions shaped it.</td></tr>
+        <tr><td><b>Catalog products</b> have typed slots (title, price in minor units, variants, options, barcodes, categories with a taxonomy) and a free <code>metadata</code> bag for everything else.</td><td>UCP has <b>no typed attribute system</b>: runtime, region, codec, condition would all land in an untyped bag. That is the gap our facets fill. We publish them as an extension, <code>com.mediaencyclopedia.shopping.catalog.facets</code> extends <code>dev.ucp.shopping.catalog</code>.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout"><b>What changes:</b> contract names take a reverse-domain owner, versions are dates, "from" (<code>&lt;</code>) is spelled <code>extends</code> to match UCP, and our catalog goes out as a UCP catalog plus our facets extension. The symbol language stays; UCP is the envelope it travels in. (UCP itself doesn't use the words "Ecommerce 3.0" or "smart contract"; its "capability declaration" is the same idea.)</div>
+  </section>
+
+  <section id="math">
+    <h2><span class="k">11</span>The math: how values combine</h2>
+    <p>Every time two things meet, a rule decides the result: a class meets the dictionary, a second stamp meets the first, a disc meets the case it sits in, a unit meets its product, a filter meets another filter. Today that rule is implied and differs by place. In v2 <b>each facet declares how its values combine</b>, and there are only three kinds.</p>
+    <div class="grid3">
+      <div class="card"><h3>Additive</h3><p>Contributions pile up.</p><ul>
+        <li>Sets <b>union</b>: Movie + Blu-ray stamps give format DVD ∪ Blu-ray; cast from every source joins.</li>
+        <li>Numbers <b>sum</b>: a box set's weight = the discs + the case; total runtime = each disc's runtime.</li>
+        <li>Counts add: units on hand.</li>
+      </ul></div>
+      <div class="card"><h3>Deductive</h3><p>Each contribution takes something away.</p><ul>
+        <li>Sets <b>intersect</b>: dictionary → class → product may only narrow the allowed values (the rule we already have).</li>
+        <li>Numbers <b>subtract</b>: a price minus a deduction per fault; a grade minus missing parts.</li>
+        <li><b>Worst wins</b>: a set's condition is its worst part (min); sealed only if every part is sealed (and).</li>
+      </ul></div>
+      <div class="card"><h3>Independent</h3><p>Contributions don't touch each other.</p><ul>
+        <li>Each facet keeps its own value: region says nothing about codec.</li>
+        <li>Independent axes <b>multiply</b>: 3 formats × 2 regions × 2 editions = 12 possible variants (the variant matrix).</li>
+        <li>Filter counts can be counted one facet at a time; <b>dependent</b> facets (gated ones) need counts taken together.</li>
+      </ul></div>
+    </div>
+
+    <h3>Each facet declares its combine rule</h3>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Rule</th><th>Kind</th><th>Math</th><th>Example facet</th><th>Order matters?</th></tr></thead>
+      <tbody>
+        <tr><td><b>join</b></td><td>additive</td><td>set union</td><td>format, cast, languages, included</td><td>no</td></tr>
+        <tr><td><b>sum</b></td><td>additive</td><td>a + b</td><td>weight, runtime of a set, quantity</td><td>no</td></tr>
+        <tr><td><b>narrow</b></td><td>deductive</td><td>set intersection</td><td>allowed values down the class chain</td><td>no</td></tr>
+        <tr><td><b>worst</b> / <b>best</b></td><td>deductive / additive</td><td>min / max</td><td>condition of a set (worst), release date of a set (earliest)</td><td>no</td></tr>
+        <tr><td><b>deduct</b></td><td>deductive</td><td>a − b</td><td>price after faults</td><td>no, if every deduction applies to the same base</td></tr>
+        <tr><td><b>replace</b></td><td>independent</td><td>last one wins</td><td>title, edition name</td><td><b>yes</b></td></tr>
+        <tr><td><b>keep</b></td><td>independent</td><td>no combining; parts keep their own</td><td>each disc's own region</td><td>no</td></tr>
+      </tbody>
+    </table></div>
+    <p>In the language it is one more tail mark: <code>weight#lb +sum</code>, <code>format{…}*+ +join</code>, <code>.condition{NM|VG|G|F|P} +worst</code>. Spelled out: <code>combine sum</code>.</p>
+
+    <h3>Why the math matters</h3>
+    <ul>
+      <li><b>Order stops mattering.</b> join, sum, narrow, worst and best give the same answer whatever order things arrive in, and applying the same stamp twice changes nothing. Only <b>replace</b> depends on order. Today stamps are order-dependent everywhere; with declared rules, only replace facets are, and the system can warn exactly there.</li>
+      <li><b>Rollups write themselves.</b> A product's value from its units, a set from its discs, a container from its contents: each is the facet's combine rule run over the parts. No per-screen code.</li>
+      <li><b>Merges are safe.</b> Two people editing, an import landing over hand edits, AI filling gaps: with order-free rules the results meet cleanly. This is the same math that lets offline apps sync without conflicts.</li>
+      <li><b>Transport keeps meaning.</b> A contract can say "eBay's weight = sum of parts in oz" or "Condition = worst part, mapped to eBay's ID". The rule travels with the facet.</li>
+      <li><b>Filters count correctly.</b> Independent facets get fast per-facet counts (what <code>facet_value_stats</code> does today); facets marked dependent tell the filter rail it needs joint counts.</li>
+      <li><b>Breaking changes become visible.</b> Changing a facet's combine rule (join → replace) changes every rolled-up value, so it is a breaking version change.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="k">12</span>Where it fits with the v2.0 brief</h2>
+    <ul>
+      <li>A <b>facet version</b> is one definition statement. Its symbol line is its fingerprint: two versions differ exactly where their lines differ, and the safe/breaking check reads the difference (more values: safe; fewer: breaking).</li>
+      <li><b>IDs</b> (<code>F-…</code>, <code>V-…</code>) can stand in for any key or value.</li>
+      <li><b>Templates</b> are classes written in the language: a list of facet lines with narrowings, plus placement settings.</li>
+      <li><b>schema.org output</b> for Google is generated from each facet's <code>=schema:</code> link, not hand-mapped.</li>
+      <li><b>Imports and AI</b> read and write the language; aliases and value shapes do the matching.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="k">13</span>Open calls</h2>
+    <div class="q"><b>1. The name</b><span>CRUBAL 2, or a new name?</span><span class="rec">keep CRUBAL: it is the same idea, grown up.</span></div>
+    <div class="q"><b>2. The symbol set</b><span>Twelve marks as in section 3. Any you'd change? (<code>^</code> for image and <code>.</code> for the unit are the least obvious.)</span><span class="rec">keep the set small; change marks now, before anything is written in them.</span></div>
+    <div class="q"><b>3. Storage</b><span>The language as the authoring and transport form, with storage staying JSON, or store the text itself?</span><span class="rec">keep JSON storage; the language is read and printed, never stored.</span></div>
+    <div class="q"><b>4. Qualifiers and sources on values</b><span>Wikidata allows detail and a source on every value. Support <code>[…]</code> qualifiers on any value, or only on facets that declare them?</span><span class="rec">only where the facet declares which qualifiers it allows; otherwise every value grows a tail.</span></div>
+    <div class="q"><b>5. Ranks</b><span>Wikidata's preferred / normal / deprecated rank on competing values?</span><span class="rec">not now; our decision log already settles which value wins.</span></div>
+    <div class="q"><b>6. Entities</b><span>References to Wikidata items (<code>&amp;wd:Q…</code>) as the first entity IDs, before we build our own registry?</span><span class="rec">yes: reuse Wikidata IDs for people, companies and works; mint our own only for what Wikidata lacks.</span></div>
+    <div class="q"><b>7. Where to start</b><span>Write the reader and printer first and run every live facet through it (the dictionary as CRUBAL 2 text), then build the v2.0 phases on top?</span><span class="rec">yes: it doubles as the Phase 0 audit, since anything the language cannot express is a facet to fix.</span></div>
+    <div class="q"><b>8. Speak UCP</b><span>Adopt UCP&#39;s rules (reverse-domain names, dated versions, <code>extends</code>, negotiation) inside the language, and publish our catalog as a UCP catalog plus a facets extension?</span><span class="rec">yes to the rules now; publishing to outside agents later, once contracts exist.</span></div>
+    <div class="q"><b>11. Combine rules</b><span>Every facet declares one combine rule (join, sum, narrow, worst/best, deduct, replace, keep). Agree with the seven, and that replace is the only order-dependent one and gets a warning?</span><span class="rec">yes; default join for many-valued facets, replace for single ones, and set sum/worst by hand where parts roll up.</span></div>
+    <div class="q"><b>9. First contract to prove transport</b><span>Which system goes first: the label printer (ours, small, already has machinery), eBay listing (real outside rules and value maps), or Location → Shippo?</span><span class="rec">label printer first: few facets, one effect, fully in our hands; eBay second, since the pricer already holds eBay's rules.</span></div>
+    <div class="q"><b>10. Where contracts run</b><span>Contracts checked in the database (enforced on every write, like the alias fold), in TypeScript, or both generated from one declaration?</span><span class="rec">both from one declaration: the database enforces needs and guards, TypeScript runs the maps and draws the UI.</span></div>
+  </section>
+</main>
+
+<script>
+(function(){
+  const src = document.getElementById("src"), out = document.getElementById("out");
+  const precision = { y: "year", ym: "month and year", ymd: "full date", any: "any precision" };
+  function explain(line){
+    line = line.trim(); if (!line) return "";
+    const tail = { aliases: [], same: [], from: [] };
+    line = line.replace(/\s~("([^"]*)"|\S+)/g, (_, a, q) => { tail.aliases.push(q ?? a); return ""; })
+               .replace(/\s=(\S+)/g, (_, a) => { tail.same.push(a); return ""; })
+               .replace(/\s<(\S+)/g, (_, a) => { tail.from.push(a); return ""; }).trim();
+    const lines = [];
+    let rest = line, unit = false, req = false;
+    if (rest.startsWith("!")) { req = true; rest = rest.slice(1); }
+    if (rest.startsWith(".")) { unit = true; rest = rest.slice(1); }
+    if (rest.startsWith("!")) { req = true; rest = rest.slice(1); }
+    const key = (rest.match(/^[A-Za-z_][\w.]*/) || [""])[0]; rest = rest.slice(key.length);
+    let type = "text", extra = "", count = "pick 1";
+    const card = rest.match(/\*(\+|\d+)\s*$/); if (card) { count = card[1] === "+" ? "any number" : card[1] === "1" ? "pick 1" : `up to ${card[1]}`; rest = rest.slice(0, card.index); }
+    let m;
+    if ((m = rest.match(/^\{(.*)\}$/))) { type = "choice list"; extra = "values " + m[1].split("|").map(v => v.includes("=") ? `${v.split("=")[0]} (also ${v.split("=").slice(1).join(", ")})` : v).join(", "); }
+    else if ((m = rest.match(/^#(\S*)$/))) { type = "measure"; extra = m[1] ? `unit ${m[1]}` : "no unit"; }
+    else if ((m = rest.match(/^@(\S*)$/))) { type = "date"; extra = `precision ${precision[m[1] || "any"] || m[1]}`; }
+    else if (rest === "?") type = "yes / no";
+    else if (rest === "^") type = "image";
+    else if ((m = rest.match(/^&(\S+)$/))) { type = "reference"; extra = `to ${m[1]}`; }
+    else if ((m = rest.match(/^\((.*)\)$/))) { type = "module"; extra = "containing " + m[1]; }
+    else if (rest === "$" || rest === "") type = "text";
+    else return `Couldn't read "${rest}". Try a suffix: $ # @ ? ^ {a|b} &Type ( … ) *N`;
+    lines.push(`facet ${key}`);
+    lines.push(`  type ${type}${type === "choice list" || type === "image" || type === "module" || type === "text" ? ", " + count : ""}`);
+    if (extra) lines.push(`  ${extra}`);
+    lines.push(`  collected on ${unit ? "the unit" : "the product"}${req ? ", required" : ""}`);
+    if (tail.aliases.length) lines.push(`  aliases ${tail.aliases.join(", ")}`);
+    if (tail.same.length) lines.push(`  same as ${tail.same.join(", ")}`);
+    if (tail.from.length) lines.push(`  from ${tail.from.join(", ")}`);
+    return lines.join("\n");
+  }
+  const run = () => { out.textContent = src.value.split("\n").map(explain).filter(Boolean).join("\n\n"); };
+  src.addEventListener("input", run); run();
+})();
+</script>

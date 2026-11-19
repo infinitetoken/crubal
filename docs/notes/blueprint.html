@@ -1,0 +1,762 @@
+<title>CRUBAL 2 Blueprint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,650&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column (~68ch) with full-width tables and figures; a sticky contents strip. */
+:root {
+  --paper: #f5f7fa;
+  --sheet: #ffffff;
+  --ink: #16202c;
+  --muted: #5a6676;
+  --rule: #d8dee6;
+  --accent: #2b55c4;
+  --accent-soft: #e6ecfb;
+  --mark: #a3480f;
+  --ok: #1f7a4d;
+  --warn: #9a6a00;
+  --bad: #b3261e;
+  --l1: #e9f2ee; --l2: #e8eefb; --l3: #f1ebf8; --l4: #fbefe6; --l5: #f6f0dc; --l6: #e4f1f4; --l7: #eceff3;
+  --display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f141b; --sheet: #161d26; --ink: #e4e9ef; --muted: #9aa6b5; --rule: #2a3542;
+    --accent: #8eaaf5; --accent-soft: #1d2a47; --mark: #f0a46c;
+    --ok: #6fcf9c; --warn: #e2b44d; --bad: #f08a80;
+    --l1: #16271f; --l2: #18223a; --l3: #251c33; --l4: #33221a; --l5: #2e2a17; --l6: #152a2f; --l7: #1d242e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f141b; --sheet: #161d26; --ink: #e4e9ef; --muted: #9aa6b5; --rule: #2a3542;
+  --accent: #8eaaf5; --accent-soft: #1d2a47; --mark: #f0a46c;
+  --ok: #6fcf9c; --warn: #e2b44d; --bad: #f08a80;
+  --l1: #16271f; --l2: #18223a; --l3: #251c33; --l4: #33221a; --l5: #2e2a17; --l6: #152a2f; --l7: #1d242e;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.6; padding-inline: 16px; padding-block: 0 64px; }
+.wrap { max-width: 920px; margin: 0 auto; }
+.col { max-width: 68ch; }
+header.top { padding-block: 48px 24px; border-bottom: 1px solid var(--rule); }
+.eyebrow { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+h1 { font-family: var(--display); font-weight: 650; font-size: clamp(30px, 5vw, 44px); line-height: 1.12; margin: 8px 0 12px; text-wrap: balance; }
+h2 { font-family: var(--display); font-weight: 650; font-size: 27px; line-height: 1.2; margin: 0 0 12px; text-wrap: balance; }
+h3 { font-size: 17px; font-weight: 600; margin: 26px 0 6px; }
+p { margin: 0 0 14px; }
+ul { margin: 0 0 14px; padding-left: 22px; }
+li { margin-bottom: 4px; }
+.lede { font-size: 18px; color: var(--muted); }
+section { padding-block: 40px 12px; border-bottom: 1px solid var(--rule); }
+section:last-of-type { border-bottom: 0; }
+.secno { font-family: var(--mono); font-size: 13px; color: var(--accent); margin-bottom: 4px; display: block; }
+nav.toc { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13.5px; padding-block: 10px; position: sticky; top: env(safe-area-inset-top, 0px); background: var(--paper); z-index: 2; border-bottom: 1px solid var(--rule); }
+nav.toc a { color: var(--muted); text-decoration: none; }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--accent); }
+a { color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code, pre { font-family: var(--mono); font-size: 13.5px; }
+code { background: var(--accent-soft); padding: 1px 5px; border-radius: 3px; }
+pre { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px; overflow-x: auto; line-height: 1.55; margin: 0 0 16px; }
+pre .c { color: var(--muted); }
+pre .k { color: var(--accent); font-weight: 600; }
+.m { color: var(--mark); font-weight: 600; }
+
+.stack { display: grid; gap: 6px; margin: 20px 0 24px; }
+.layer { display: grid; grid-template-columns: 150px 1fr minmax(0, 220px); gap: 14px; align-items: start; padding: 12px 16px; border-radius: 6px; border: 1px solid var(--rule); }
+.layer b { font-family: var(--display); font-size: 19px; font-weight: 650; }
+.layer .says, .layer .refs { min-width: 0; }
+.layer .refs { font-size: 13px; color: var(--muted); }
+.layer .lvl { font-family: var(--mono); font-size: 11.5px; color: var(--muted); display: block; }
+.L7 { background: var(--l7); } .L6 { background: var(--l6); } .L5 { background: var(--l5); } .L4 { background: var(--l4); }
+.L3 { background: var(--l3); } .L2 { background: var(--l2); } .L1 { background: var(--l1); }
+@media (max-width: 640px) { .layer { grid-template-columns: 1fr; gap: 4px; } }
+
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px; margin: 16px 0; }
+.card { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px; min-width: 0; }
+.card h4 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+.card p { font-size: 14.5px; margin: 0 0 8px; }
+.card pre { margin: 6px 0 0; font-size: 12.5px; }
+
+.tbl { overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--rule); border-radius: 6px; background: var(--sheet); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--paper); }
+tr:last-child td { border-bottom: 0; }
+td code { white-space: nowrap; }
+
+.pill { display: inline-block; font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.must { color: var(--bad); } .should { color: var(--warn); } .suggest { color: var(--ok); }
+.settled { color: var(--ok); } .open { color: var(--warn); }
+
+.flow { list-style: none; padding: 0; margin: 16px 0 20px; counter-reset: s; }
+.flow li { display: grid; grid-template-columns: 34px 1fr; gap: 12px; padding: 11px 0; border-top: 1px solid var(--rule); counter-increment: s; margin: 0; }
+.flow li::before { content: counter(s); font-family: var(--mono); font-size: 13px; color: var(--accent); padding-top: 2px; }
+.flow .who { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.flow .body { min-width: 0; }
+
+.callout { border-left: 3px solid var(--accent); padding: 4px 0 4px 14px; margin: 18px 0; }
+.log { list-style: none; padding: 0; margin: 12px 0; counter-reset: d; }
+.log li { counter-increment: d; display: grid; grid-template-columns: 42px 1fr; gap: 8px; padding: 8px 0; border-top: 1px solid var(--rule); margin: 0; font-size: 15px; }
+.log li::before { content: "D" counter(d); font-family: var(--mono); font-size: 12.5px; color: var(--accent); padding-top: 2px; }
+.log h4 { grid-column: 1 / -1; margin: 18px 0 2px; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.log li.head { display: block; border-top: 0; padding: 0; counter-increment: none; }
+.log li.head::before { content: none; }
+footer { color: var(--muted); font-size: 13px; padding-top: 28px; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="wrap">
+<header class="top">
+  <div class="eyebrow">CRUBAL 2 · settled in review · Oct 13, 2026</div>
+  <h1>The whole system, as settled: seven pieces, three relationships, one engine for any kind</h1>
+  <p class="lede col">Everything decided in the review is on this page. It is the brief for the written spec. CRUBAL is a universal language and engine for data about any kind of thing. Our catalog is its first package. The JSON form is settled too (section 15); the written spec comes next.</p>
+</header>
+
+<nav class="toc" aria-label="Contents">
+  <a href="#stack">Stack</a><a href="#records">Records</a><a href="#relations">Relationships</a><a href="#facets">Facets</a><a href="#classes">Classes</a><a href="#rules">Rules</a><a href="#contracts">Contracts</a><a href="#provenance">Provenance</a><a href="#sharing">Sharing</a><a href="#intake">Intake</a><a href="#evidence">Evidence</a><a href="#migrations">Migrations</a><a href="#views">Views</a><a href="#marks">Marks</a><a href="#json">JSON</a><a href="#open">Open</a><a href="#log">Decision log</a>
+</nav>
+
+<section id="stack">
+  <span class="secno">1</span>
+  <h2>The stack</h2>
+  <div class="col">
+    <p>Read from the bottom. Everything is written in the same pairs (<code>key<span class="m">: </span>value</code>). Each piece refers only to the pieces below it, so the data layer works alone, and anyone can adopt the language one layer at a time.</p>
+  </div>
+  <div class="stack" role="list">
+    <div class="layer L7" role="listitem"><div><span class="lvl">bundle</span><b>Packages</b></div><div class="says">Who owns the names, which version, which kinds and levels exist, which other packages it uses, the trust order. What gets published.</div><div class="refs">contains everything below</div></div>
+    <div class="layer L6" role="listitem"><div><span class="lvl">level 4</span><b>Views</b></div><div class="says">Selections over many records: catalogs, filters (maps), related carousels, how a group is shown, page lists.</div><div class="refs">uses rules, classes, facets</div></div>
+    <div class="layer L5" role="listitem"><div><span class="lvl">level 4</span><b>Contracts</b></div><div class="says">Borders where values cross: systems, people (forms) and other owners (sharing). The only place anything happens in the world.</div><div class="refs">uses rules, classes, facets</div></div>
+    <div class="layer L4" role="listitem"><div><span class="lvl">level 3</span><b>Rules</b></div><div class="says">What must, should or probably is true, and what follows. Pure: they decide, never act.</div><div class="refs">uses classes, facets</div></div>
+    <div class="layer L3" role="listitem"><div><span class="lvl">level 3</span><b>Classes</b></div><div class="says">What a kind of thing asks for: facets, arranged, composed from other classes with <code>uses</code>, narrowing only.</div><div class="refs">uses facets</div></div>
+    <div class="layer L2" role="listitem"><div><span class="lvl">level 2</span><b>Facets</b></div><div class="says">What a key means: type, how many, choices, unit, other names, version.</div><div class="refs">uses keys</div></div>
+    <div class="layer L1" role="listitem"><div><span class="lvl">level 1</span><b>Data</b></div><div class="says">Records of pairs, each with an envelope (ID, kind, owner, times). Values say what they are by shape.</div><div class="refs">needs nothing</div></div>
+  </div>
+  <div class="col">
+    <div class="callout"><strong>The engine is universal at the kind level.</strong> The core does data management for any kind of thing. Machinery is a package that attaches to kinds: commerce (stock, offers, pricing, shipping) attaches to items and services, and media is another package. What gets published splits three ways: the <strong>core spec</strong>, <strong>standard packages</strong> (commerce first), and <strong>our package</strong>.</div>
+  </div>
+</section>
+
+<section id="records">
+  <span class="secno">2</span>
+  <h2>Records, the envelope and the three empties</h2>
+  <div class="col">
+    <p>A record is one thing, with pairs. Its <strong>envelope</strong> is defined by the core and written by the engine: ID, kind, owner, created and updated times (the JSON form, section 15, adds level, parent, worn classes, parts and the sources map). The envelope carries no source; a package can show it as read-only facets.</p>
+  </div>
+<pre><span class="k">product</span>: P-4QX7                        <span class="c">// envelope: id, kind item, owner me</span>
+  title: "National Lampoon's Christmas Vacation"
+  runtime: 97min  [origin: observed, via: me:ocr]   <span class="c">// sources print only when asked</span>
+  videoCodec: <span class="m">_</span>                          <span class="c">// applies, not known yet</span>
+  hdrFormats: <span class="m">-</span>                          <span class="c">// does not apply</span>
+<span class="k">unit</span>: U-9KD2 of P-4QX7
+  condition: VG
+  price: 12.50<span class="m">USD</span></pre>
+  <div class="tbl"><table>
+    <thead><tr><th>State</th><th>Written</th><th>Means</th></tr></thead>
+    <tbody>
+      <tr><td>absent</td><td>key not there</td><td>nobody has said anything</td></tr>
+      <tr><td>unknown</td><td><code>_</code></td><td>it applies; the value is still owed. Doesn't satisfy "required"</td></tr>
+      <tr><td>does not apply</td><td><code>-</code></td><td>no value, by design. Allowed only where a rule allows it; a failing gate produces it automatically</td></tr>
+    </tbody>
+  </table></div>
+  <div class="col"><p><strong>The empties are data; nullability is rules.</strong> There is no null type and no nullable flag.</p></div>
+</section>
+
+<section id="relations">
+  <span class="secno">3</span>
+  <h2>Kinds and the three relationships</h2>
+  <div class="col">
+    <p>A <strong>kind</strong> is a record's root type, fixed when the record is created. It declares its levels, a base class it always wears, and its schema.org type. Classes then refine it: many, changeable, and each may say which kinds can wear it (<code>for: item</code>). Packages declare kinds, so another adopter can add <code>event</code> or <code>vehicle</code>.</p>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>Kind</th><th>schema.org</th><th>Levels</th></tr></thead>
+    <tbody>
+      <tr><td>item</td><td><code>schema:Product</code> (a unit maps to <code>schema:Offer</code>)</td><td>group &gt; product &gt; unit</td></tr>
+      <tr><td>service</td><td><code>schema:Service</code></td><td>service &gt; booking</td></tr>
+      <tr><td>work</td><td><code>schema:CreativeWork</code> (worn as Movie, Game…)</td><td>one</td></tr>
+      <tr><td>person · organization</td><td><code>schema:Person</code> · <code>schema:Organization</code></td><td>one</td></tr>
+    </tbody>
+  </table></div>
+  <div class="col">
+    <p>Records relate in exactly <strong>three structural ways</strong>. Every other relationship (director, studio, "same film on another format") is an ordinary link facet.</p>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th></th><th>Version (instance of)</th><th>Part (part of)</th><th>Kind (kind of)</th></tr></thead>
+    <tbody>
+      <tr><td>Answers</td><td>which version or unit of what</td><td>made of what</td><td>what it is</td></tr>
+      <tr><td>Values</td><td>flow <strong>down</strong>; a lower level overrides only facets declared to vary there</td><td>don't flow down</td><td>classes say what to ask, not what's true</td></tr>
+      <tr><td>Rollups</td><td>go <strong>up</strong> by the combine rules</td><td>go <strong>up</strong> by the combine rules</td><td>none</td></tr>
+      <tr><td>Support</td><td>observations go <strong>up</strong> as evidence (section 11)</td><td>observations go up</td><td>none</td></tr>
+      <tr><td>Addressed</td><td><code>unit::condition</code></td><td><code>parts[disc2].condition</code></td><td>n/a</td></tr>
+      <tr><td>How many</td><td>one parent</td><td>one whole (owned) or many (shared)</td><td>one kind, many classes</td></tr>
+    </tbody>
+  </table></div>
+  <div class="col">
+    <h3>Versions</h3>
+    <ul>
+      <li>Each level step declares what varies at it. A variant group's <strong>forks</strong> (edition, size × colour) vary at group → product; unit facets (condition, included) vary at product → unit. Shoppers pick along both.</li>
+      <li>A facet can <strong>follow</strong> a fork (Label follows Edition, Weight follows Size). Following facets are dependent: filter counts for them are taken together.</li>
+      <li>Overriding happens only where a facet is declared to vary, which replaces <code>unit-override</code>. A shared value is stored once, at the highest level where it's true.</li>
+      <li>A variant group is a level, a record with its own identity: UCP's product, with our product as UCP's variant.</li>
+    </ul>
+    <h3>Parts</h3>
+    <ul>
+      <li><strong>Owned parts</strong> (disc 2 of this set, the case) exist only inside their whole and wear their own classes.</li>
+      <li><strong>Shared parts</strong> are records of their own, linked in. The Work (the film) is carried by the DVD, the Blu-ray and the 4K. Its values are stored once and read through for display, never copied.</li>
+      <li><strong>A unit mirrors its product's parts:</strong> disc 2's condition is a unit facet on that part. This is the Manifest, defined.</li>
+      <li>The DVD and Blu-ray of one film are <strong>separate products sharing a Work</strong>. "Also on other formats" is a view over products that share the Work, not a variant picker.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="facets">
+  <span class="secno">4</span>
+  <h2>Facets</h2>
+  <div class="col">
+    <h3>Types</h3>
+    <p>text, number, date, yes-no, choice, link, image, and <strong>compound</strong>: a value made of pairs (Cast, Manifest, audio tracks).</p>
+    <ul>
+      <li>A compound's children are real facets, addressed through their parent (<code>cast.character</code>, <code>Audio.language</code>), and they can nest to <strong>any depth</strong> (<code>manifest[2].audio[1].language</code>).</li>
+      <li>A compound's rows have <strong>row keys</strong>, so reordering doesn't break an address and two sources can tell whether they mean the same row. A many-valued facet declares whether it's an <strong>ordered list</strong> (billing order) or a <strong>set</strong>.</li>
+      <li>A choice list fixed by definition (Blu-ray regions A, B, C) says <code>fixed: yes</code>. Off-list values are contradictions only there (section 10).</li>
+    </ul>
+    <h3>Aliases are naming, not rules</h3>
+    <ul>
+      <li>Key aliases (<code>videoCodec ~codec</code>) and value aliases (<code>16:9 ~16x9 ~Widescreen</code>) mean the same thing always, everywhere, for that facet. They live in the definition.</li>
+      <li>They fold <strong>before any rule runs</strong>. Stored data never holds an alias, and the printer writes only the real name.</li>
+      <li>The test: if it depends on context, it's a <code>suggest</code> rule. If it's another system's vocabulary, it's a contract value map. If it's the same thing under different facets, it's a shared link (<code>&amp;wd:…</code>).</li>
+      <li>Rules about definitions apply: a key alias can't equal another facet's key or alias, and a value alias can't collide within its facet. A choice facet must have values.</li>
+      <li>Adding an alias is safe. Removing one is safe for stored data but can break imports. Turning a value into an alias of another is a merge, which is breaking.</li>
+    </ul>
+    <h3>Identity and versions</h3>
+    <ul>
+      <li>The key is the identity and never changes. It is written with its owner prefix (<code>me:videoCodec</code>), and inside one's own files the bare key is enough. A rename changes the label, and old spellings become aliases.</li>
+      <li>Each facet, class, rule and contract has its own dated versions, which are immutable. <strong>A package version is a frozen set of member versions.</strong> Inside a package, everything follows current. Outside adopters pin a package version.</li>
+      <li>Stored values carry no version; migrations keep them current. Short IDs (<code>F-7KQ2</code>) are allowed but not required.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="classes">
+  <span class="secno">5</span>
+  <h2>Classes and modules</h2>
+  <div class="col">
+    <ul>
+      <li>Classes <strong>compose</strong> with <code>uses:</code>; there's no inheritance. A class may narrow what it uses, never widen it. <code>extends</code> remains only for contracts and packages, where it is UCP's word.</li>
+      <li>The authoring gesture is unchanged: you build a module. One setting decides what it becomes:
+        <ul>
+          <li>stored <strong>under its own key</strong> (Cast, Manifest): a <strong>compound facet</strong>;</li>
+          <li>stored <strong>flat under a heading</strong> (Optical disc, Dimensions): a <strong>class that other classes use</strong>.</li>
+        </ul>
+      </li>
+      <li>Placement (order, the level that collects a facet, the photo frame) is a class setting. It never holds a facet's type or values, so classes and the dictionary can't disagree.</li>
+    </ul>
+  </div>
+<pre><span class="k">class</span>: OpticalDisc
+  uses: VideoRelease
+  facets:
+    format{DVD|Blu-ray|4K|HD-DVD}              <span class="c">// narrows</span>
+    videoCodec{MPEG-2|H.264|VC-1|HEVC|AV1}
+    unit<span class="m">::</span>discCondition{NM|VG|G|F|P} <span class="m">+</span>worst</pre>
+</section>
+
+<section id="rules">
+  <span class="secno">6</span>
+  <h2>Rules</h2>
+  <div class="col">
+    <p>Every rule has the same shape: <strong>when</strong> (a condition, optional) → <strong>then</strong> (a consequence) at a <strong>strength</strong>. It can also say <strong>for</strong> (a class, a level, or everywhere) and <strong>because</strong> (the reason shown to people).</p>
+  </div>
+<pre><span class="k">rule</span>: dvdIsMpeg2
+  for: OpticalDisc
+  when: format is DVD
+  then: videoCodec is MPEG-2
+  strength: suggest
+  because: DVD-Video is MPEG-2 by standard</pre>
+  <div class="tbl"><table>
+    <thead><tr><th>Strength</th><th>A write that breaks it</th><th>An empty value</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill must">must</span></td><td>refused, with the reason</td><td>counts as incomplete</td></tr>
+      <tr><td><span class="pill should">should</span></td><td>saved and flagged</td><td>flagged</td></tr>
+      <tr><td><span class="pill suggest">suggest</span></td><td>nothing; a person's value wins</td><td>filled, with the rule as its source</td></tr>
+    </tbody>
+  </table></div>
+  <div class="col">
+    <h3>Words</h3>
+    <p>Conditions use <code>is</code>, <code>in</code>, <code>has</code>, <code>not</code>, <code>and</code>, <code>or</code>, plus <code>before</code>, <code>after</code>, <code>over</code>, <code>under</code>, and ranges with <code>in 1..600</code>. Aggregates use the combine rules: <code>worst of parts.condition</code>.</p>
+    <h3>What rules cover</h3>
+    <p>Rules cover checks, requirements, forbidding, narrowing, fills, derivations (templates only) and rollups. Facet settings are <strong>shortcuts that expand to rules</strong>, with one engine behind them:</p>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>Setting</th><th>Expands to</th></tr></thead>
+    <tbody>
+      <tr><td><code>required: yes</code></td><td><code>then: title has</code> · <span class="pill must">must</span></td></tr>
+      <tr><td><code>range</code> (advisory)</td><td><code>then: runtime in 1..300</code> · <span class="pill should">should</span></td></tr>
+      <tr><td><code>unique: yes</code></td><td><code>then: gtin is unique</code> · <span class="pill must">must</span> (a global rule)</td></tr>
+      <tr><td><code>when:</code> (a gate)</td><td>outside the condition, the facet is <code>-</code> · <span class="pill must">must</span></td></tr>
+      <tr><td><code>combine:</code></td><td><code>then: condition is worst of parts.condition</code></td></tr>
+      <tr><td>class narrowing</td><td><code>for: OpticalDisc  then: format in DVD, Blu-ray</code> · <span class="pill must">must</span></td></tr>
+      <tr><td><code>show:</code></td><td>visibility to an audience, as a rule</td></tr>
+    </tbody>
+  </table></div>
+  <div class="col">
+    <h3>What makes a rule a rule</h3>
+    <ul>
+      <li><strong>Pure.</strong> It reads values and returns a verdict or a proposed value. It never acts. Anything that isn't a template (prices, AI text) arrives through a contract.</li>
+      <li><strong>Layered.</strong> No rule depends on its own effect. A rule set that can't be layered (fills and <code>not</code> chasing each other) is refused at publish.</li>
+      <li><strong>Checked against each other.</strong> Two <code>must</code> rules that can't both hold are a publish error.</li>
+      <li><strong>Order-free</strong>, except where <code>replace</code> is involved, and the engine says where.</li>
+      <li><strong>Global rules are their own class</strong> (<code>unique</code>, catalog membership). They look at many records, so they need indexes.</li>
+      <li><strong>Gate turns off with a value stored:</strong> the value is kept, hidden and flagged, never silently dropped.</li>
+      <li><strong>Traceable.</strong> Every refusal and fill names its rule.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="contracts">
+  <span class="secno">7</span>
+  <h2>Contracts</h2>
+  <div class="col">
+    <p>If something only decides, it's a rule. If it moves values or does something, it's a contract. Each system declares one contract and maps only to facets: ten systems need ten maps, not forty-five bridges.</p>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>Kind</th><th>Values go</th><th>Examples</th></tr></thead>
+    <tbody>
+      <tr><td>send</td><td>out to a system</td><td>label printer, eBay listing, Merchant feed, structured data</td></tr>
+      <tr><td>receive</td><td>in from a system</td><td>scanner, eBay catalog, imports, OCR, AI, the SKU allocator, the pricer</td></tr>
+      <tr><td>store</td><td>both ways, with an object's own columns</td><td>Location, Order</td></tr>
+      <tr><td>form</td><td>to a person and back</td><td>Unitizer, editor, checkout, signup, customer corrections</td></tr>
+      <tr><td>offer · take</td><td>between owners (section 9)</td><td>a distributor's catalog, a collector's records</td></tr>
+    </tbody>
+  </table></div>
+  <div class="col">
+    <ul>
+      <li><strong>Parts:</strong> <code>kind</code>, <code>needs</code>, <code>gives</code>, <code>reads</code>/<code>writes</code>/<code>stores</code> (the map; <code>-&gt;</code> maps a value), <code>when</code>, <code>who</code>, <code>version</code>, and for intake <code>absorb</code>, <code>ignore</code>, <code>keep-raw</code>.</li>
+      <li><strong>A contract's needs is a class:</strong> the same facet lines and the same narrowing (<code>title$80</code>). "eBay needs Format" is the completeness check pointed at a border.</li>
+      <li><strong>Forms are contracts with a person</strong>, so the screen assembles itself from needs, using each facet's control.</li>
+      <li><strong>Running one:</strong> check the trigger and permission, check needs, map out, act (the only step with an effect), map back with sources, run rules on what came in, record versions used (UCP's envelope).</li>
+      <li><strong>Contracts chain without knowing each other:</strong> one's gives satisfies another's needs.</li>
+    </ul>
+    <h3>Auth</h3>
+    <ul>
+      <li><strong>Authorization is inside CRUBAL.</strong> <code>who</code> is a condition over the caller, who is a record, and <code>show</code> rules decide visibility.</li>
+      <li><strong>Authentication is the host's job.</strong> Sign-in, OAuth and API keys belong to whatever runs the contracts. A contract declares what the other side requires (<code>auth: oauth2, scope …</code>) and names a credential (<code>credential: ebay-seller</code>), and the host resolves the name.</li>
+      <li><strong>No secret ever appears in CRUBAL text.</strong> A package must be publishable as-is.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="provenance">
+  <span class="secno">8</span>
+  <h2>Provenance and ownership</h2>
+  <div class="col">
+    <p>Every stored value carries three things. The full hop-by-hop chain lives in the owners' signed logs.</p>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>Field</th><th>Holds</th><th>Changes?</th></tr></thead>
+    <tbody>
+      <tr><td><strong>origin</strong></td><td>who first established it, and how: <strong>observed</strong> (read off a real instance), <strong>declared</strong> (its maker said so), <strong>derived</strong> (a rule computed it), <strong>reported</strong> (a catalog says so, origin unknown)</td><td>never</td></tr>
+      <tr><td><strong>via</strong></td><td>who you got it from: a person, a contract or a rule, with the run and the intake record</td><td>per write</td></tr>
+      <tr><td><strong>owner</strong></td><td>who controls it now</td><td>yes, by adopting</td></tr>
+    </tbody>
+  </table></div>
+  <div class="col">
+    <ul>
+      <li><strong>Rule or contract?</strong> Could the value be produced again, from the record's own values, with the same answer? If yes, a <strong>rule</strong> produced it, and it can be dropped and rebuilt. If no, a <strong>contract</strong> did (AI, comps, a drawn SKU), and it's irreplaceable, so it is kept.</li>
+      <li><strong>Inherited and read-through values</strong> carry no source on the lower record. Their source lives where they're held.</li>
+      <li><strong>The log is hash-linked and signed per write,</strong> like git or Certificate Transparency. There's no consensus, mining or global ledger: every record has an owner, so the owner's log is the truth for their data. One write makes one log entry, however many values it touched.</li>
+      <li><strong>A migration never becomes the source.</strong> A person's renamed value is still the person's, with the migration added as a note.</li>
+    </ul>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>You hold</th><th>Readable on its own?</th><th>Updates?</th><th>Owner</th></tr></thead>
+    <tbody>
+      <tr><td>a <strong>link</strong></td><td>no; it's their current value while they're reachable</td><td>always theirs</td><td>them</td></tr>
+      <tr><td>a <strong>copy</strong></td><td>yes, self-contained</td><td>depends on the mode</td><td>them, until adopted</td></tr>
+      <tr><td>an <strong>adopted copy</strong></td><td>yes</td><td>no; their changes arrive as suggestions</td><td>you</td></tr>
+    </tbody>
+  </table></div>
+  <div class="col">
+    <p><strong>Adopting is ✎ "made your own"</strong>, the same verb at every scale. A person editing a rollup or fill takes it from the rule. A consumer adopting a value takes it from another owner. Adopting a whole record gives a new record with <code>cloned-from</code>. Terms can forbid it. The <strong>trust order</strong> is per package, a person first by default, and a facet may override it. Customer corrections are a lower-trust person source and land as suggestions.</p>
+  </div>
+</section>
+
+<section id="sharing">
+  <span class="secno">9</span>
+  <h2>Sharing between owners</h2>
+  <div class="col">
+    <p>Everyone owns and publishes their data. The presenter publishes an <strong>offer</strong> (what, to whom, on what terms). The consumer declares a <strong>take</strong> (which facets, how they merge, their trust). Only the overlap flows. The gates between them are rules on both contracts, and visibility (public, followers, named parties, private; per record, facet or value) is decided by rules.</p>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>Mode</th><th>Copy?</th><th>Keeps updating?</th><th>Controlled after by</th></tr></thead>
+    <tbody>
+      <tr><td><strong>dump</strong> (clone)</td><td>yes</td><td>no, once</td><td>the consumer</td></tr>
+      <tr><td><strong>observed</strong> (follow)</td><td>no; read-through</td><td>yes</td><td>the presenter</td></tr>
+      <tr><td><strong>gathered</strong> (subscribe)</td><td>yes</td><td>yes; arrives as intake</td><td>the consumer; their edits win</td></tr>
+      <tr><td><strong>controlled</strong></td><td>yes</td><td>yes</td><td>the presenter's terms: no re-sharing, expiry, revocation</td></tr>
+    </tbody>
+  </table></div>
+  <div class="col">
+    <ul>
+      <li><strong>Modes are defined by these properties</strong>, so a package can name new combinations. The four are the first, not a closed list.</li>
+      <li><strong>Only "observed" is technically enforced.</strong> The others are agreements the engine honours, backed by licence and law.</li>
+      <li><strong>Parties use domain-based keys</strong> published at a well-known address. Hops can be redacted: a hash stands in, and the chain still verifies.</li>
+      <li>A presenter never overrides a consumer's person-entered values, unless the consumer accepted controlled terms.</li>
+      <li><strong>Optional tools:</strong> reconciliation compares datasets and lists differences as conflicts. Consensus is a confidence signal from many independent datasets agreeing. It counts <strong>independent origins only</strong> (forty clones of one catalog are one vote), weights votes by verified identity and origin type, and is never forced.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="intake">
+  <span class="secno">10</span>
+  <h2>Intake: absorbing raw data, or bypassing it</h2>
+  <div class="col">
+    <p>Every object arrives through a receive contract (a minimal one for a dump or legacy data), and <strong>the raw payload is kept forever, as received</strong>. Then it's folded in a fixed order: the contract's map, then aliases, then shapes. Rules run on the result.</p>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>Outcome</th><th>When</th><th>What happens</th></tr></thead>
+    <tbody>
+      <tr><td><strong>absorbed</strong></td><td>fits</td><td>lands, with its source</td></tr>
+      <tr><td><strong>new</strong></td><td>a value the vocabulary doesn't have yet</td><td>lands, marked new; goes to vocabulary review (add, alias, or reject)</td></tr>
+      <tr><td><strong>conflict</strong></td><td>disagrees with another source's value</td><td>the trust order picks the current value; the other is kept as an alternative</td></tr>
+      <tr><td><strong>contradiction</strong></td><td>it can be shown impossible</td><td>parked beside the facet, with its citation</td></tr>
+      <tr><td><strong>unknown</strong></td><td>no facet for the key</td><td>carried under the source's prefix (<code>ebay:Studio</code>), never interpreted</td></tr>
+      <tr><td><strong>ignored</strong></td><td>the contract says skip it</td><td>stays in the intake record only</td></tr>
+    </tbody>
+  </table></div>
+  <div class="col">
+    <div class="callout"><strong>A contradiction must cite what it contradicts:</strong> the facet's type, a <code>must</code> rule, another value on the same object, or another record under a global rule. A new value is vocabulary growth, not a contradiction. Off-list values contradict only a <code>fixed</code> list.</div>
+    <ul>
+      <li>Outside a <code>should</code> range, or less precise than wanted: lands, flagged. More precise than the facet keeps: store what the facet keeps; the intake record keeps the rest.</li>
+      <li>More values than <code>pick</code> allows is a contradiction with the definition, and review offers both fixes.</li>
+      <li><strong>Bypass:</strong> <code>absorb: no</code> for a whole source, <code>ignore:</code> or <code>keep-raw:</code> for keys.</li>
+      <li><strong>Review is by key across all objects</strong> ("<code>ebay:Studio</code>: 40,112 objects, 812 values"). A decision changes a map or the vocabulary, never objects directly. Then held intake records are <strong>replayed</strong>.</li>
+      <li>New and unknown values are searchable by staff, never shown in customer filters or pages. AI can propose mappings, never apply them.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="evidence">
+  <span class="secno">11</span>
+  <h2>Evidence and observations: data consuming data to validate</h2>
+  <div class="col">
+    <p><strong>An observation is not a value.</strong> A value is the current answer. An observation is an evidence-backed claim made on one instance that supports or contradicts the value.</p>
+  </div>
+  <ol class="flow">
+    <li><div class="body"><span class="who">evidence</span><br>Captured from a real instance: a photo, a scan, a disc read, a scale or measure-grid reading. Origin: observed.</div></li>
+    <li><div class="body"><span class="who">measurement</span><br>A receive contract (OCR, barcode, vision, the grid) consumes it and produces a raw reading, kept forever as an intake record.</div></li>
+    <li><div class="body"><span class="who">mapping</span><br>The intake fold turns <code>97 MIN.</code> into an observation <code>runtime: 97min</code> on that unit.</div></li>
+    <li><div class="body"><span class="who">support goes up</span><br>The unit's observation supports the product's value. This is the third flow on the version relationship: values down, rollups up, support up.</div></li>
+    <li><div class="body"><span class="who">validation</span><br><strong>confirmed</strong> (n independent observations agree), <strong>contradicted</strong> (they disagree, so it becomes a conflict), or <strong>unobserved</strong> (declared or reported only).</div></li>
+    <li><div class="body"><span class="who">version split</span><br>A consistent cluster of disagreeing units is probably a different version. The engine proposes a new product or fork.</div></li>
+  </ol>
+  <div class="col">
+    <ul>
+      <li><strong>Independence counts instances and evidence types, not runs.</strong> Two photos of one unit are one witness.</li>
+      <li><strong>Re-measuring the same evidence replaces the earlier reading;</strong> raw readings stay for replay.</li>
+      <li><strong>Learned patterns go through review.</strong> Rules decide what confirmation is worth: observed can outrank declared for physical facts.</li>
+      <li>It works for any kind: an ID document gives a person's name, an invoice gives a service's lines, end credits give the cast on a Work.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="migrations">
+  <span class="secno">12</span>
+  <h2>Migrations</h2>
+  <div class="col">
+    <p><strong>A breaking version ships a recipe, and every store restamps with it.</strong> Stored data is always current. <strong>Mapping on read is banned.</strong> Inside a store nothing carries a version. At a border, the envelope names the package version the data was written under, so outside adopters restamp their own data when they upgrade.</p>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>Change</th><th>Recipe verb</th><th>Needs a person?</th></tr></thead>
+    <tbody>
+      <tr><td>rename or merge values</td><td><code>rename</code> · <code>merge</code></td><td>no</td></tr>
+      <tr><td>narrow date precision, change unit</td><td><code>convert</code> (stated rounding)</td><td>no</td></tr>
+      <tr><td>text → choice</td><td><code>merge</code> + <code>review</code></td><td>the leftovers</td></tr>
+      <tr><td>split a value</td><td><code>split when …</code></td><td>where no rule decides</td></tr>
+      <tr><td>lower <code>pick</code></td><td><code>review</code></td><td>usually</td></tr>
+      <tr><td>change combine rule</td><td>recompute</td><td>no</td></tr>
+      <tr><td>merge facets, move a key</td><td><code>move</code></td><td>sometimes</td></tr>
+    </tbody>
+  </table></div>
+  <div class="col"><p><code>review</code> sends leftovers to a queue and never drops them. Writes that arrive during a long restamp are swept again at the end, or folded through the recipe while the migration is open.</p></div>
+</section>
+
+<section id="views">
+  <span class="secno">13</span>
+  <h2>Views</h2>
+  <div class="col">
+    <p>Views are the seventh piece: <strong>a curated display that data is mapped into</strong>. A view is a selection of records (by level, worn classes and a condition, or a hand-made list) given a <strong>shape</strong>. A shape is a set of display slots filled by <code>-&gt;</code> map lines, exactly like a send contract, so one card serves a catalog, a carousel and search. <code>pin</code> and <code>hide</code> curate on top of the rules. Product pages are page shapes whose slots hold other views ("also on other formats", carousels).</p>
+    <ul>
+      <li><strong>Filters are sub-indexes</strong> inside their view: buckets (value groups or ranges) are the map shoppers see, and counts follow the other picks. New, unknown and held values are never bucketed.</li>
+      <li><strong>Audiences</strong> are few and fixed: public (including crawlers), member, staff, owner, named parties. <code>show</code> rules decide visibility per record, facet and value.</li>
+      <li><strong>Roles</strong> are itemized permissions (<code>see</code>, <code>edit</code>, <code>run</code>, <code>review</code>) that sit on top of an audience as a filter. A role narrows its audience and never exceeds it, so roles never touch projections, caches or indexes. Default deny above member; a person's roles add up; who holds a role is data with a source.</li>
+      <li><strong>Search engines:</strong> the public projection is the canonical, stored, indexed one. Only filters declared in <code>index</code> get landing pages; every other combination is noindex. Titles point to facets; structured data comes from the kind's schema.org type and <code>same-as</code>.</li>
+      <li><strong>AI is not an audience.</strong> An unauthenticated bot is public and a signed-in AI is a caller with roles. What differs is use, so packages and views declare <code>terms</code> per audience (<code>public: search yes, answer yes, train no</code>), which the host turns into robots rules, headers and a terms file. Views can add <strong>machine shapes</strong> (JSON, JSON-LD, a UCP catalog feed) beside their cards, from the same projection, for agents.</li>
+      <li><strong>Stored and indexed</strong>, never derived on read. Each view's read set is worked out at publish; a write to a key in it marks only that record's projection stale. <code>fresh: write</code> rebuilds in the same transaction, <code>fresh: 5m</code> batches.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="marks">
+  <span class="secno">14</span>
+  <h2>Marks: one meaning each</h2>
+  <div class="col">
+    <p>A mark means one thing at every level. Shorthand exists only for facet lines, and rules, contracts, views and packages are spelled out in words. A two-character mark is its own mark. Settled changes from draft 0.1:</p>
+    <ul>
+      <li>an open list ends in <code>...</code>, and <code>+</code> is only combine;</li>
+      <li>money is <code>12.50USD</code>, and <code>$</code> is only text;</li>
+      <li>levels are <code>unit::condition</code>, and <code>.</code> is only a path;</li>
+      <li>value maps are <code>-&gt;</code>;</li>
+      <li><code>-</code> stays as "does not apply", is never a list item, and <code>n/a</code> is accepted on input;</li>
+      <li>only <code>: </code> or a colon at the end of a line separates a key from its value;</li>
+      <li>a version is a tail: a space, then <code>/</code> and a date.</li>
+    </ul>
+  </div>
+  <div class="grid2">
+    <div class="card"><h4>In data</h4>
+      <div class="tbl" style="margin:6px 0 0"><table><tbody>
+        <tr><td><code>: </code></td><td>key from value</td></tr>
+        <tr><td>indent · <code>- </code> · <code>,</code></td><td>inside · list item · short list</td></tr>
+        <tr><td><code>//</code> · <code>"…"</code></td><td>comment · text with marks</td></tr>
+        <tr><td><code>_</code> · <code>-</code></td><td>unknown · does not apply</td></tr>
+        <tr><td><code>&amp;</code> · <code>[ ]</code></td><td>link · detail about a value</td></tr>
+        <tr><td><code>97min</code> · <code>12.50USD</code></td><td>unit · money</td></tr>
+      </tbody></table></div>
+    </div>
+    <div class="card"><h4>In a facet line</h4>
+      <div class="tbl" style="margin:6px 0 0"><table><tbody>
+        <tr><td><code>!</code> · <code>unit::</code></td><td>required · on a level</td></tr>
+        <tr><td><code>$ # @ ?</code></td><td>text · number · date · yes-no</td></tr>
+        <tr><td><code>{a|b}</code> · <code>...</code></td><td>choice · open list</td></tr>
+        <tr><td><code>&amp; ^ ( )</code></td><td>link · image · compound</td></tr>
+        <tr><td><code>* *3 ..</code></td><td>any · up to 3 · range</td></tr>
+        <tr><td><code>~ = &lt; + /</code></td><td>alias · same as · uses · combine · version</td></tr>
+        <tr><td><code>-&gt;</code></td><td>becomes (contract maps)</td></tr>
+      </tbody></table></div>
+    </div>
+  </div>
+</section>
+
+<section id="json">
+  <span class="secno">15</span>
+  <h2>The JSON form</h2>
+  <div class="col">
+    <p><strong>The JSON holds the same pairs as the text form, with nothing added.</strong> Text and JSON convert into each other without loss, apart from comments. The JSON is what gets stored, sent and signed; the text form is for reading and writing.</p>
+  </div>
+<pre>{
+  <span class="k">"id"</span>: "P-4QX7", <span class="k">"kind"</span>: "item", <span class="k">"level"</span>: "product", <span class="k">"of"</span>: "G-2HM8",
+  <span class="k">"owner"</span>: "mediaencyclopedia.com", <span class="k">"wears"</span>: ["OpticalDisc", "Movie"],
+  <span class="k">"created"</span>: "2026-10-13T18:02:11Z", <span class="k">"updated"</span>: "2026-10-14T09:40:03Z",
+  <span class="k">"values"</span>: {
+    "title": "National Lampoon's Christmas Vacation",
+    "format": "DVD",
+    "releaseDate": "1997-10",
+    "runtime": { <span class="m">"$qty"</span>: 97, "unit": "min" },
+    "videoCodec": { <span class="m">"$empty"</span>: "unknown" },
+    "hdrFormats": { <span class="m">"$empty"</span>: "n/a" },
+    "genres": ["Comedy", "Holiday"],
+    "rating": [{ <span class="m">"$value"</span>: "PG-13", "region": "US" }],
+    "work": { <span class="m">"$link"</span>: "W-81CC" },
+    "director": { <span class="m">"$link"</span>: "wd:Q311319" },
+    "cast": [
+      { "person": { "$link": "wd:Q310394" }, "character": "Clark Griswold" },   <span class="c">// row key derived from person</span>
+      { "person": { "$link": "wd:Q229048" }, "character": "Ellen Griswold" }
+    ],
+    "ebay:Studio": "Warner Home Video"         <span class="c">// unknown key, carried under the source's prefix</span>
+  },
+  <span class="k">"parts"</span>: [ { "$row": "disc1", "wears": ["Disc"], "values": { "discFormat": "DVD-9" } } ],
+  <span class="k">"sources"</span>: {
+    "runtime": { "origin": "observed", "via": "L-7Q1F" },
+    "genres[\"Holiday\"]": { "origin": "reported", "via": "L-3A0K" },
+    "cast[wd:Q229048].character": { "origin": "declared", "via": "L-3A0K" },
+    "*": { "origin": "reported", "via": "L-3A0K" }
+  }
+}
+
+{ <span class="k">"id"</span>: "U-9KD2", "kind": "item", <span class="k">"level"</span>: "unit", <span class="k">"of"</span>: "P-4QX7", "owner": "mediaencyclopedia.com",
+  "values": { "condition": "VG", "price": { <span class="m">"$money"</span>: "12.50", "currency": "USD" } },
+  "parts": [ { "$row": "disc1", "values": { "condition": "NM" } } ],   <span class="c">// mirrors the product's parts</span>
+  "sources": { "*": { "origin": "observed", "via": "L-9D4E" } } }</pre>
+  <div class="col">
+    <h3>The envelope</h3>
+    <ul>
+      <li><strong>Envelope and values are separate.</strong> The top level holds only engine-written fields; data lives under <code>values</code>, so a facet key can never collide with an envelope field.</li>
+      <li>The envelope grows past section 2's list (ID, kind, owner, times) by five fields: <code>level</code>, <code>of</code> (the version parent), <code>wears</code>, <code>parts</code> and <code>sources</code>. A record can't be read without its classes, so <code>wears</code> belongs here, not as a value; who chose a class shows in the log.</li>
+      <li><strong>Units store only what varies at their level.</strong> Inherited values are read through, never copied. Owned parts nest inside their whole and wear their own classes; a unit mirrors its product's parts by row key.</li>
+      <li><strong>Keys:</strong> bare keys belong to the document's own package. Anyone else's keys carry their prefix, including unknown intake keys (<code>ebay:Studio</code>).</li>
+    </ul>
+    <h3>Values</h3>
+    <ul>
+      <li><strong>The facet types plain values</strong>, as in the text form: text and choices are strings, numbers are numbers, yes-no is <code>true</code>/<code>false</code>, and dates are ISO strings carrying their precision (<code>1997</code>, <code>1997-10</code>, <code>1997-10-03</code>). The JSON alone doesn't say a value's type; a reader without the definitions keeps the plain value.</li>
+      <li><strong>Tagged objects</strong> cover everything JSON lacks. Each has one <code>$</code> member, and <code>$</code> can't start a facet key, so tags never collide.</li>
+      <li><strong>JSON <code>null</code> is banned.</strong> Tools treat it inconsistently, and the three empties must stay distinct. A missing key means absent.</li>
+    </ul>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>Shape</th><th>JSON</th></tr></thead>
+    <tbody>
+      <tr><td>quantity</td><td><code>{"$qty": 97, "unit": "min"}</code></td></tr>
+      <tr><td>money</td><td><code>{"$money": "12.50", "currency": "USD"}</code>: an exact decimal string, never a float; minor units only at borders that need them</td></tr>
+      <tr><td>link</td><td><code>{"$link": "P-4QX7"}</code>: a bare ID is our own record, <code>prefix:</code> another owner or Wikidata, a URL a web page</td></tr>
+      <tr><td>image</td><td><code>{"$image": "https://…", "sha256": "…", "w": 1600, "h": 2400}</code></td></tr>
+      <tr><td>unknown · does not apply</td><td><code>{"$empty": "unknown"}</code> · <code>{"$empty": "n/a"}</code></td></tr>
+      <tr><td>qualified value</td><td><code>{"$value": "PG-13", "region": "US"}</code>; it wraps any other shape</td></tr>
+      <tr><td>compound row</td><td>a plain object of child facets, plus <code>"$row"</code></td></tr>
+    </tbody>
+  </table></div>
+  <div class="col">
+    <h3>Lists, rows and addresses</h3>
+    <ul>
+      <li>A many-valued facet is always an array; the facet says whether it's an ordered list or a set.</li>
+      <li>When a compound declares an identity child (cast → <code>person</code>, a link), the row key is that link's target and is never written; otherwise every row carries a minted <code>$row</code>.</li>
+      <li><strong>Addresses</strong> are the same paths everywhere (sources, intake, observations, rules): <code>runtime</code>, <code>cast[wd:Q229048].character</code>, <code>parts[disc1].condition</code>, and list items by value, <code>genres["Holiday"]</code>. Plain lists can't hold duplicates.</li>
+    </ul>
+    <h3>Sources</h3>
+    <ul>
+      <li><strong>Sources sit in a parallel map, not wrapped around each value.</strong> <code>values</code> stays clean and printable, and hiding sources is leaving the map out.</li>
+      <li><code>*</code> is the record's default; a more specific address wins. Sources reach per list item and per compound leaf.</li>
+      <li><code>via</code> points at a log entry, which holds the who and how (person, contract run or rule), the intake record and the signature. <code>owner</code> is left out when it's the record's owner. One write makes one log entry.</li>
+    </ul>
+  </div>
+  <h3>Intake records, log entries and observations</h3>
+<pre>{ <span class="k">"intake"</span>: "I-55ZT", "contract": "me:ebayCatalog /2026-10-01", "received": "2026-10-14T09:39:58Z", "for": "P-4QX7",
+  "raw": { "type": "application/json", "sha256": "…", "body": "{\"Run Time\":\"97 min.\",…}" },   <span class="c">// exact bytes</span>
+  "outcomes": [
+    { "from": "Run Time", "to": "runtime", "outcome": "absorbed", "value": { "$qty": 97, "unit": "min" } },
+    { "from": "Studio", "to": "ebay:Studio", "outcome": "unknown" },
+    { "from": "Format", "to": "format", "outcome": "contradiction", "value": "Blu-ray",
+      "cites": { "value": "parts[disc1].discFormat" } } ] }
+
+{ <span class="k">"log"</span>: "L-7Q1F", "prev": "sha256:…", "owner": "mediaencyclopedia.com", "at": "2026-10-14T09:40:03Z",
+  "by": { "contract": "me:ocr", "run": "R-118" }, "intake": "I-56AA",
+  "writes": [ { "record": "P-4QX7", "address": "runtime", "value": { "$qty": 97, "unit": "min" } } ], "sig": "…" }
+
+{ <span class="k">"obs"</span>: "O-2KQ0", "on": "U-9KD2", "address": "runtime", "value": { "$qty": 97, "unit": "min" },
+  "evidence": { "$image": "…/back-cover.jpg", "sha256": "…" }, "reading": "I-56AA", "supports": "P-4QX7" }</pre>
+  <div class="col">
+    <ul>
+      <li><strong>Raw payloads are stored as their exact bytes</strong> with a hash, never parsed and re-serialized.</li>
+      <li><strong>Border wrapper:</strong> <code>{"crubal": "2", "package": "me /2026-10-13", "records": […]}</code>, the only place a version appears.</li>
+      <li><strong>Canonical form</strong> for hashing and signing: RFC 8785 (JSON Canonicalization Scheme), with sets sorted.</li>
+      <li><strong>Comments are not carried in JSON.</strong> In definitions, <code>describe</code> holds what's worth keeping.</li>
+      <li><strong>Definitions</strong> (facet, class, rule, contract, package) are the long form's pairs as a JSON object, the shape <code>lib/crubal/dictionary.ts</code> already bridges. The detail goes in the spec.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="open">
+  <span class="secno">16</span>
+  <h2>Open</h2>
+  <div class="col">
+    <h3>Next</h3>
+    <ul>
+      <li><strong>The written spec</strong>: grammar (with an escape rule), value model, every piece, conformance levels, and a public test corpus.</li>
+    </ul>
+    <h3>Awaiting a call</h3>
+    <ul>
+      <li><strong>The spec's home:</strong> a domain for the core names.</li>
+      <li><strong>Provenance details</strong> recommended but not yet confirmed: losing values kept as alternatives, in an <code>alternatives</code> map shaped like <code>sources</code>; ✎ stops updating until given back. (Sources per list item and per compound leaf, one log entry per write, and hiding sources when printing were settled with the JSON form.)</li>
+      <li><strong>ME:</strong> backfill existing values as <code>legacy</code>, trusted just below a person, or lower?</li>
+    </ul>
+  </div>
+  <h3>Gaps, split</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Gap</th><th>CRUBAL (the language)</th><th>ME (our build)</th></tr></thead>
+    <tbody>
+      <tr><td>Views</td><td>settled (section 13, spec chapter 12)</td><td>catalogs as rules; retire <code>metadata.catalog</code>; stored card projections; roles for staff</td></tr>
+      <tr><td>Contract failures</td><td>idempotency keys, retry, undo, late answers, scheduled callers</td><td>the runner for eBay, Shippo, the printer</td></tr>
+      <tr><td>Time</td><td><code>now</code> in conditions; events vs current values</td><td>price history, status changes</td></tr>
+      <tr><td>Combine math</td><td>contribution identity so sum and deduct don't double</td><td>rollups dedupe by contribution</td></tr>
+      <tr><td>Enforcement</td><td>which rules a conforming store must refuse at write</td><td>which rules compile to Postgres</td></tr>
+      <tr><td>Data-only readers</td><td>keep raw text beside a guessed type</td><td></td></tr>
+      <tr><td>Links</td><td>readers follow redirects</td><td>refresh Wikidata links</td></tr>
+      <tr><td>Missing words</td><td><code>label.es</code>, the units table, money in minor units at borders, presence-means-yes</td><td>map our current settings to them</td></tr>
+      <tr><td>Publishing</td><td>language versioning, extension registry, licence, name, conformance corpus</td><td>UCP catalog with our facets</td></tr>
+    </tbody>
+  </table></div>
+  <div class="col">
+    <p><strong>ME only:</strong></p>
+    <ul>
+      <li>the Phase 0 rulings (proprietary);</li>
+      <li>one source of truth (classes stop holding their own type), which likely explains the blank enum boxes on the bench;</li>
+      <li>retiring or re-framing <code>_classSnapshot</code> pins;</li>
+      <li>machinery slots as <code>me:</code> keys;</li>
+      <li>flat modules becoming used classes, and ×N modules becoming compounds;</li>
+      <li>facet and value IDs;</li>
+      <li>the Unitizer and editor as form contracts;</li>
+      <li>the OCR, vision and measure-grid contracts;</li>
+      <li>the review queue by key;</li>
+      <li>intake records for our past sources. <strong>Our 348k products are the first big intake.</strong></li>
+    </ul>
+  </div>
+</section>
+
+<section id="log">
+  <span class="secno">17</span>
+  <h2>Decision log, Oct 13, 2026</h2>
+  <ol class="log">
+    <li class="head"><h4>Language and scope</h4></li>
+    <li>CRUBAL is universal and will be packaged and published once there's a solid working copy. Our catalog is its first package.</li>
+    <li>The engine is universal at the kind level. Commerce is a machinery package attached to kinds, never core.</li>
+    <li>Seven pieces: data, facets, classes, rules, contracts, views, packages. Each refers only downward.</li>
+    <li>Marks as in section 14; shorthand is for facet lines only.</li>
+    <li class="head"><h4>Records and relationships</h4></li>
+    <li>Three empties are data; nullability is rules.</li>
+    <li>The envelope (ID, kind, owner, times) is core and engine-written, with no source.</li>
+    <li>Kind is the root type with levels, a base class and a schema.org type. It's fixed; classes are many.</li>
+    <li>Three structural relationships (version, part, kind). Everything else is a link facet.</li>
+    <li>Override down levels only where a facet is declared to vary. Forks and follows are level-step declarations. A variant group is a level.</li>
+    <li>Owned and shared parts. Shared parts are read through. Units mirror their product's parts.</li>
+    <li>DVD and Blu-ray of one film are separate products sharing a Work.</li>
+    <li class="head"><h4>Facets and classes</h4></li>
+    <li>The compound type, any depth, row keys, ordered list vs set.</li>
+    <li>Aliases are naming, fold before rules, and are governed by dictionary rules.</li>
+    <li><code>fixed: yes</code> for lists fixed by definition.</li>
+    <li>The key is identity, with dated versions per piece. A package version is a frozen set.</li>
+    <li>Classes compose with <code>uses:</code>. Modules author as before and become a compound or a used class.</li>
+    <li class="head"><h4>Rules and contracts</h4></li>
+    <li>Strengths must, should, suggest. Facet settings are shortcuts for rules, with one engine.</li>
+    <li>Comparison words and <code>in a..b</code> ranges. Templates are the only computation inside rules.</li>
+    <li>A contract's needs is a class. Forms are contracts with a person.</li>
+    <li>Authorization is in CRUBAL, authentication is the host's job, and no secrets appear in text.</li>
+    <li class="head"><h4>Provenance, sharing, intake, evidence, migrations</h4></li>
+    <li>Every record has an owner. Owner and origin are separate: the owner can change by adopting; the origin never does.</li>
+    <li>Values carry origin (observed, declared, derived, reported), via and owner. The chain lives in hash-linked, signed logs, with no consensus requirement.</li>
+    <li>Link, copy, adopt. A copy is always self-contained.</li>
+    <li>"Generated" splits by reproducibility: rule or contract.</li>
+    <li>Sharing is offer plus take. Modes are defined by their properties and open-ended. Visibility is by rules. "Controlled" on a copy is an agreement.</li>
+    <li>Reconciliation and consensus are optional tools. Consensus counts independent origins.</li>
+    <li>Raw payloads are kept forever. Six intake outcomes. A contradiction must cite what it contradicts. Staff search covers raw values.</li>
+    <li>Observations are separate from values. Support goes up. Independence counts instances. Validation states, with version-split proposals.</li>
+    <li>Migrations are recipes, every store restamps, and mapping on read is banned.</li>
+    <li>Spec it now. ME builds single-owner first, with sharing later on the same storage.</li>
+    <li class="head"><h4>The JSON form, Oct 14, 2026</h4></li>
+    <li>Sources sit in a parallel map keyed by address, with a <code>*</code> default; they reach list items and compound leaves, and <code>via</code> names a log entry.</li>
+    <li><code>$</code>-tagged objects for quantity, money, link, image, the empties and qualified values. JSON <code>null</code> is banned.</li>
+    <li>The facet types plain values, as in the text form; the JSON alone isn't self-describing.</li>
+    <li>Money is an exact decimal string with a currency; minor units only at borders that need them.</li>
+    <li>The envelope adds <code>level</code>, <code>of</code>, <code>wears</code>, <code>parts</code> and <code>sources</code>; values live under <code>values</code>.</li>
+    <li>Raw payloads are stored as exact bytes with a hash.</li>
+    <li>RFC 8785 canonical form, sets sorted, for hashing and signing.</li>
+    <li>Comments are not carried in JSON.</li>
+    <li class="head"><h4>Views, Oct 14, 2026</h4></li>
+    <li>A view is a selection plus a shape; shapes map facets into display slots like send contracts; <code>pin</code> and <code>hide</code> curate.</li>
+    <li>Filters are per-view sub-indexes; buckets are the map; counts follow the other picks.</li>
+    <li>Audiences: public, member, staff, owner, named parties. The public projection is the only stored and indexed one.</li>
+    <li>Roles are itemized permissions on top of an audience, narrowing only; they never affect the machinery.</li>
+    <li>Only declared filters get indexable landing pages; everything else is noindex.</li>
+    <li>Projections are stored; the read set decides staleness; <code>fresh</code> picks same-transaction or batched.</li>
+    <li>AI gets no audience: <code>terms</code> per audience say how what's shown may be used, and machine shapes serve agents from the same projection.</li>
+    <li class="head"><h4>Harvest from the first CRUBAL, Oct 14, 2026</h4></li>
+    <li>Part slots itemize by default; only <code>fungible: yes</code> may count. Incoming rows and parts are matched (identity, then <code>match</code>, then review) before new rows are minted.</li>
+    <li>A core <code>notables</code> compound holds per-record facts no class asks for; recurring keys are proposed as facets.</li>
+    <li>Facets and classes have a lifecycle: candidate, active, retired. The agent advises; a person promotes.</li>
+    <li>Evidence can veto. Contracts can propose classes, landing by consensus. Conditions test value states (<code>is conflicted</code>, <code>is confirmed</code>), so contracts can cascade, and a contract may abstain.</li>
+    <li>Facets declare <code>agree-by</code> for consensus; class lines take <code>when</code>; completeness is a 0–1 measure; templates gain <code>??</code> and <code>?</code>; a portable shape and share-by-link offers.</li>
+  </ol>
+</section>
+
+<footer>CRUBAL 2 Blueprint · supersedes the open questions in the handbook and the facets v2.0 brief where they differ · docs/crubal/blueprint.html</footer>
+</div>

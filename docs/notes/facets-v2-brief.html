@@ -1,0 +1,257 @@
+<title>Facets v2.0 Brief</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a design brief — a contents rail on wide screens, numbered sections (the order is the argument), tables for
+   the data model, a phased plan, and the decisions at the end. */
+:root{
+  --bg:#ffffff; --fg:#121412; --muted:#626862; --border:rgba(0,0,0,.13); --card:#f3f5f2; --inset:rgba(0,0,0,.06);
+  --accent:#138a17; --accent-soft:rgba(19,138,23,.1); --open:#a77f00; --problem:#bf4410; --ground:#e9ece7;
+  --sans:"Atkinson Hyperlegible",ui-sans-serif,system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0b0c0b;--fg:#eef1ed;--muted:#9aa19a;--border:rgba(255,255,255,.14);--card:#141614;--inset:rgba(255,255,255,.08);--accent:#3ad140;--accent-soft:rgba(58,209,64,.12);--open:#e4c24a;--problem:#ee8658;--ground:#060706;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0b0c0b;--fg:#eef1ed;--muted:#9aa19a;--border:rgba(255,255,255,.14);--card:#141614;--inset:rgba(255,255,255,.08);--accent:#3ad140;--accent-soft:rgba(58,209,64,.12);--open:#e4c24a;--problem:#ee8658;--ground:#060706;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--fg);font-family:var(--sans);font-size:15.5px;line-height:1.55}
+.shell{max-width:1120px;margin:0 auto;padding-block:28px 72px;padding-inline:16px;display:grid;grid-template-columns:200px minmax(0,1fr);gap:24px}
+@media (max-width:860px){.shell{grid-template-columns:minmax(0,1fr)}.toc{display:none}}
+.toc{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px);align-self:start;display:flex;flex-direction:column;gap:4px;font-size:13.5px}
+.toc a{color:var(--muted);text-decoration:none;padding:3px 8px;border-radius:6px}
+.toc a:hover{background:var(--inset);color:var(--fg)}
+main{display:flex;flex-direction:column;gap:18px;min-width:0}
+h1{margin:0;font-size:28px;text-wrap:balance}
+h2{margin:0;font-size:20px;text-wrap:balance;display:flex;gap:10px;align-items:baseline}
+h2 .k{font:600 13px var(--mono);color:var(--accent)}
+h3{margin:0;font-size:15.5px}
+p{margin:0;max-width:70ch}
+.muted{color:var(--muted)}
+.mono{font-family:var(--mono);font-size:.87em}
+section.panel{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:12px}
+ul,ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px;max-width:72ch}
+.tablewrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:0}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--card)}
+.callout{border-left:4px solid var(--accent);background:var(--accent-soft);border-radius:0 10px 10px 0;padding:10px 14px;max-width:76ch}
+.warn{border-left-color:var(--problem);background:color-mix(in oklch,var(--problem) 9%,transparent)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.card{border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--card);display:flex;flex-direction:column;gap:6px;min-width:0}
+.tag{font:600 11px var(--mono);border-radius:999px;padding:1px 8px;background:var(--inset);color:var(--fg);align-self:flex-start}
+.tag.ok{background:var(--accent-soft);color:var(--accent)}
+.tag.brk{background:color-mix(in oklch,var(--problem) 14%,transparent);color:var(--problem)}
+.timeline{display:flex;flex-direction:column;gap:0;border-left:2px solid var(--border);margin-left:6px}
+.ev{position:relative;padding:4px 0 12px 16px}
+.ev::before{content:"";position:absolute;left:-7px;top:9px;width:12px;height:12px;border-radius:50%;background:var(--bg);border:2px solid var(--accent)}
+.ev.cur::before{background:var(--accent)}
+.ev b{font-family:var(--mono);font-size:13px}
+.phase{display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.phase:last-child{border-bottom:0}
+.phase .p{font:700 13px var(--mono);color:var(--accent)}
+.q{border:1px solid var(--border);border-left:4px solid var(--open);border-radius:10px;padding:10px 14px;display:flex;flex-direction:column;gap:4px}
+.q b{font-size:15px}
+.rec{font-size:13.5px;color:var(--muted)}
+.rec::before{content:"Recommendation: ";font-weight:700;color:var(--fg)}
+pre{margin:0;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;overflow-x:auto;font:13px/1.5 var(--mono)}
+a{color:var(--accent)}
+</style>
+
+<div class="shell">
+  <nav class="toc" aria-label="Contents">
+    <a href="#why">1 · Why</a>
+    <a href="#goals">2 · Goals</a>
+    <a href="#model">3 · The model</a>
+    <a href="#versions">4 · Versions</a>
+    <a href="#types">5 · Type rules</a>
+    <a href="#screens">6 · Screens</a>
+    <a href="#data">7 · Data changes</a>
+    <a href="#plan">8 · Phased plan</a>
+    <a href="#risks">9 · Risks</a>
+    <a href="#decisions">10 · Decisions</a>
+  </nav>
+
+  <main>
+    <header style="display:flex;flex-direction:column;gap:8px">
+      <h1>Facets v2.0: stable IDs and version control</h1>
+      <p class="muted">Design brief, Oct 13, 2026. Written after your Unitizer facet notes and the facet-design discussion page. It builds on <span class="mono">docs/v2-model.md</span> (Sept 29), whose question 2, "key ids", was left for later; this is that later. The approach is pragmatic: give every facet an identity and a history on top of today's data, without rewriting the 425,850 products and 366,951 units that already hold facet values.</p>
+    </header>
+
+    <section class="panel" id="why">
+      <h2><span class="k">1</span>Why now</h2>
+      <p>Every inconsistency in your notes traces back to the same gap: a facet has no single, stable identity and no record of how it changed.</p>
+      <ul>
+        <li><b>The name is the identity.</b> A facet is its text key (<span class="mono">videoCodec</span>). Product values, 218 template placements and about 20 database functions all key on that name, so renaming is a data migration, not a label edit.</li>
+        <li><b>The type lives in two places.</b> The dictionary entry has a type, and each template placement keeps its own copy. They drift: 5 facets disagree today (Video Codec, Disc Format, HDR Formats, Aspect Ratio, Included), so screens guess.</li>
+        <li><b>No history.</b> Changing a definition overwrites it. There is no "what was this yesterday", no undo, and no way to tell which products were written under the old shape. The decision log (22 entries) and recast jobs record some actions, not the definition itself.</li>
+        <li><b>Breaking changes are silent.</b> Turning text into a choice list, dropping a value or lowering "pick up to" changes what existing values mean, with nothing forcing the stored data to follow.</li>
+        <li><b>No rules per type.</b> Choice lists draw three ways, dates are all-or-nothing, 25 facets have no type at all.</li>
+      </ul>
+    </section>
+
+    <section class="panel" id="goals">
+      <h2><span class="k">2</span>Goals and non-goals</h2>
+      <div class="grid2">
+        <div class="card"><h3>Goals</h3><ul>
+          <li>Every facet has a stable ID that never changes, plus a free label you can rename.</li>
+          <li>Every change to a definition is a new <b>version</b>: who, when, why, and what changed.</li>
+          <li>One source of truth for a facet's definition; templates only place it.</li>
+          <li>A breaking change cannot go live until the stored data has been converted to match.</li>
+          <li>One rule per type, so a facet draws the same everywhere (the type rules in section 5).</li>
+        </ul></div>
+        <div class="card"><h3>Non-goals (for this brief)</h3><ul>
+          <li>Re-keying 425k products' stored values by ID. Values stay keyed by the facet's machine key, which simply stops changing.</li>
+          <li>The entity registry for values (works, people, companies) from v2-model §3. Value IDs here cover choice-list values only.</li>
+          <li>Per-product version stamps on every stored value.</li>
+          <li>Changing how templates stamp (they still stamp, not subscribe).</li>
+        </ul></div>
+      </div>
+    </section>
+
+    <section class="panel" id="model">
+      <h2><span class="k">3</span>The model</h2>
+      <p>Three things, each with one job:</p>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Thing</th><th>What it is</th><th>Example</th><th>Changes?</th></tr></thead>
+        <tbody>
+          <tr><td><b>Facet</b></td><td>The identity. A short public ID, a machine key (where values are stored), a label, aliases (other spellings).</td><td><span class="mono">F-7KQ2</span> · key <span class="mono">videoCodec</span> · label "Video codec" · aliases "codec", "Video Format"</td><td>ID and key: never. Label and aliases: freely.</td></tr>
+          <tr><td><b>Facet version</b></td><td>An immutable snapshot of the definition: type, how many (N), values, precision, unit, range, caption, description, where it is collected by default.</td><td><span class="mono">F-7KQ2 v3</span>: choice list, pick 1, MPEG-2 · H.264 · VC-1 · HEVC · AV1</td><td>Never edited. A change makes v4.</td></tr>
+          <tr><td><b>Placement</b></td><td>Where a template puts a facet, and only what is true of that spot: order, parent module, collected on product or unit, gates, the photo frame.</td><td>Optical Disc places F-7KQ2, collected on the product, after Disc format</td><td>Yes, per template. Never the type or the values.</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout"><b>The pragmatic key.</b> Today's text key (<span class="mono">source_path</span>) becomes the <b>machine key</b>: frozen once assigned. That keeps every stored value, every SQL function and every filter working unchanged. A rename changes the label only. Spellings from imports become aliases (the existing <span class="mono">canonical_source_path</span> column is the start of this; no facet uses it yet). The short public ID (<span class="mono">F-…</span>) is what people and notes refer to, like CashierFu IDs for products.</div>
+      <h3>Choice-list values get IDs too</h3>
+      <p>Each value of a choice list becomes a row with its own short ID, a machine value (what is stored), a label and aliases. "16x9", "16:9" and "Widescreen" become one value with two aliases. Renaming a value's label changes nothing stored. The existing <span class="mono">facet_value_curation</span> table (579 rows, already holding aliases) becomes this.</p>
+    </section>
+
+    <section class="panel" id="versions">
+      <h2><span class="k">4</span>How versions work</h2>
+      <ul>
+        <li><b>Draft, then publish.</b> Edits go into a draft of the next version. Nothing changes on any screen until you press Publish. One draft per facet at a time.</li>
+        <li><b>Every publish is recorded:</b> version number, who, when, a one-line reason, and the exact differences from the last version.</li>
+        <li><b>Each change is classed as safe or breaking</b>, worked out from the differences, not chosen by hand:</li>
+      </ul>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Change</th><th>Class</th><th>What Publish does</th></tr></thead>
+        <tbody>
+          <tr><td>Caption, description, label, icon, an alias</td><td><span class="tag ok">safe</span></td><td>Goes live at once.</td></tr>
+          <tr><td>Add a choice-list value; raise "pick up to N"; widen date precision (Year → Any)</td><td><span class="tag ok">safe</span></td><td>Goes live at once. Existing values stay valid.</td></tr>
+          <tr><td>Remove or merge a value; lower N; narrow precision; change the type; change the unit</td><td><span class="tag brk">breaking</span></td><td>Opens a <b>migration</b>: shows how many products and units hold values, every distinct value, and a "becomes" column to map each one (the recast tool, already built). The version goes live when the migration finishes.</td></tr>
+          <tr><td>Retire the facet</td><td><span class="tag brk">breaking</span></td><td>Hidden from new collection; values kept and readable; can be restored.</td></tr>
+        </tbody>
+      </table></div>
+      <ul>
+        <li><b>Revert</b> is "publish an old version again" as a new version, with its own migration if going back is breaking.</li>
+        <li><b>Placements follow the current version.</b> They carry no copy of the type or values, so the dictionary and templates cannot disagree again.</li>
+      </ul>
+      <h3>Example: Video Codec</h3>
+      <div class="timeline">
+        <div class="ev"><b>v1</b> · Sept 2026 · text, one value (imported) · <span class="muted">placed as a choice list on Optical Disc: the disagreement</span></div>
+        <div class="ev"><b>v2</b> · draft → publish · choice list, pick 1: MPEG-2 · H.264 · VC-1 · HEVC · AV1 · <span class="tag brk">breaking</span> <span class="muted">migration maps stored text ("mpeg2", "MPEG 2") onto the values</span></div>
+        <div class="ev cur"><b>v3</b> · caption reworded · <span class="tag ok">safe</span> · current</div>
+      </div>
+    </section>
+
+    <section class="panel" id="types">
+      <h2><span class="k">5</span>Type rules (part of every version)</h2>
+      <p>From the discussion page. The type in a version decides how the facet collects and displays, everywhere: the Unitizer, the Editor, the product page.</p>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Type</th><th>Settings in the version</th><th>How it collects</th></tr></thead>
+        <tbody>
+          <tr><td>Choice list</td><td>values (with IDs) · N: pick 1, up to N, or any · allow additions</td><td>Bubbles only, with "pick 1 / up to N / any" beside the name. Additions are a last "＋ Other…" bubble. A filter line over very long lists. A choice list with no values cannot be published.</td></tr>
+          <tr><td>Date</td><td>precision: Year, Month + year, Full date, or Any</td><td>Only the parts the precision allows; "Any" shows a three-way switch. Stored and shown as entered: 1989, 1989-11, 1989-12-01.</td></tr>
+          <tr><td>Image</td><td>N · default photo frame</td><td>The photos, one camera tile, ⋯ for file or link. The frame can be overridden per placement.</td></tr>
+          <tr><td>Yes / no</td><td>words (default Yes · No)</td><td>Three bubbles with Unset.</td></tr>
+          <tr><td>Measure</td><td>unit · optional range · precision</td><td>A number with its unit; a slider only when a range is set.</td></tr>
+          <tr><td>Text</td><td>N · length cap</td><td>One line, a box for long text, chips when many.</td></tr>
+          <tr><td>Reference</td><td>what it points to</td><td>A search-and-pick of the referenced thing.</td></tr>
+          <tr><td>Module</td><td>children · repeat N</td><td>A section that folds; repeats as rows when N is many.</td></tr>
+        </tbody>
+      </table></div>
+      <p class="muted">The 25 facets with no type must get one (as a version) before they collect as anything but plain text.</p>
+    </section>
+
+    <section class="panel" id="screens">
+      <h2><span class="k">6</span>Screens</h2>
+      <div class="grid2">
+        <div class="card"><h3>A facet's page</h3><ul>
+          <li>Header: label, <span class="mono">F-7KQ2</span>, key, type, current version.</li>
+          <li><b>Definition</b>: the current version, read-only, with "Edit (new draft)".</li>
+          <li><b>Draft</b>: the editor; a live preview of the control; Safe / Breaking shown as you edit; Publish.</li>
+          <li><b>History</b>: every version, who, when, why; diff any two; Revert.</li>
+          <li><b>Used by</b>: templates that place it, products and units holding values, value counts.</li>
+        </ul></div>
+        <div class="card"><h3>Publishing a breaking change</h3><ul>
+          <li>The impact first: "317,561 products hold a value."</li>
+          <li>Every distinct stored value, with a "becomes" picker (the recast mapping table).</li>
+          <li>Run: a job converts in slices with a progress bar; the version goes live at the end.</li>
+          <li>Values the map leaves out are listed, never silently dropped.</li>
+        </ul></div>
+        <div class="card"><h3>Templates</h3><ul>
+          <li>The canvas places facets by ID and edits placement settings only.</li>
+          <li>The type and values shown on a placed facet are the current version's, read-only, with a link to the facet's page.</li>
+        </ul></div>
+        <div class="card"><h3>Everywhere else</h3><ul>
+          <li>Notes, the decision log and the Queue refer to facets as <span class="mono">F-7KQ2 videoCodec</span>.</li>
+          <li>The Unitizer and Editor show a small "v3" in a facet's info panel.</li>
+        </ul></div>
+      </div>
+    </section>
+
+    <section class="panel" id="data">
+      <h2><span class="k">7</span>Data changes</h2>
+      <pre>storefront.facet_curation        (exists: one row per facet — becomes the identity)
+  + public_id      text unique      -- F-7KQ2
+  ~ source_path    frozen           -- the machine key; renames go to display_name
+  + current_version_id uuid → facet_version
+
+storefront.facet_version         (new)
+  id, facet_id, version int, definition jsonb (immutable),
+  change_class 'safe' | 'breaking', note, published_by, published_at,
+  migration_job_id (for breaking), status 'draft' | 'published'
+
+storefront.facet_value           (from facet_value_curation)
+  id, public_id (V-…), facet_id, value (stored, frozen), label, aliases[], retired_at
+
+storefront.product_class_member  (placements)
+  ~ arrangement keeps placement-only settings (origin, gates, photoFrame, rollup marks);
+    definitional settings (type, values, unit, range, precision) move to the version</pre>
+      <ul>
+        <li><b>No product or unit rows are rewritten</b> by the identity or version steps. Only a breaking change converts values, through the recast job that exists today.</li>
+        <li><b>The existing "placement-only" list</b> in the code (<span class="mono">PLACEMENT_OVERRIDE_KEYS</span>) already names which settings belong to a placement, so the split is mechanical.</li>
+        <li><b>Version 1 of every facet</b> is written from today's dictionary entry. The 5 disagreements are listed for you to settle in Phase 0, never guessed.</li>
+      </ul>
+    </section>
+
+    <section class="panel" id="plan">
+      <h2><span class="k">8</span>Phased plan</h2>
+      <p class="muted">Each phase ships alone and leaves the system working.</p>
+      <div class="phase"><span class="p">0</span><div><b>Clean the data.</b> Settle the 5 type disagreements, give the 25 untyped facets a type, write Video Codec's values. A decision list for you, applied with your OK.</div></div>
+      <div class="phase"><span class="p">1</span><div><b>IDs and history.</b> <span class="mono">public_id</span> on every facet; <span class="mono">facet_version</span> with v1 from today; freeze the machine key (renames edit the label). The facet page shows ID, version and History. Nothing else changes.</div></div>
+      <div class="phase"><span class="p">2</span><div><b>One source of truth.</b> Placements stop carrying definitional settings; every screen reads the type and values from the current version. The disagreements become impossible.</div></div>
+      <div class="phase"><span class="p">3</span><div><b>Draft, publish, migrate.</b> The draft editor with live preview, the safe/breaking check, Publish, and breaking changes opening the recast migration. Revert.</div></div>
+      <div class="phase"><span class="p">4</span><div><b>Type rules.</b> Choice lists as bubbles with N; date precision; the rest of section 5, drawn from the version.</div></div>
+      <div class="phase"><span class="p">5</span><div><b>Value IDs.</b> Choice-list values as rows with IDs, labels and aliases; merges and renames through versions.</div></div>
+    </section>
+
+    <section class="panel" id="risks">
+      <h2><span class="k">9</span>Risks and costs</h2>
+      <ul>
+        <li><b>About 20 database functions key on the facet name.</b> Freezing the name as the machine key keeps them working; that is why the key does not become a uuid.</li>
+        <li><b>The census and enrichment read definitions.</b> They move to reading the current version; the shape of the definition stays the same, so the change is a read path, not a rewrite.</li>
+        <li><b>Breaking changes on big facets take time</b> (aspect ratio has 317,561 carriers). The recast job already runs in slices with progress and has run on production.</li>
+        <li><b>Two machines.</b> Phase 2 touches the template editor and every render path; it needs the build machine idle or a clear split.</li>
+        <li><b>Scope creep toward v2-model's entity registry.</b> Value IDs here stay inside one facet; cross-facet entities (one "Warner Bros." for studio and publisher) are a later step.</li>
+      </ul>
+    </section>
+
+    <section class="panel" id="decisions">
+      <h2><span class="k">10</span>Decisions needed</h2>
+      <div class="q"><b>1. The pragmatic key</b><span>Freeze today's text key as the machine key and add a short public ID, rather than re-keying stored values by uuid.</span><span class="rec">yes; re-keying 790k rows buys nothing the frozen key does not.</span></div>
+      <div class="q"><b>2. Short ID format</b><span><span class="mono">F-7KQ2</span> for facets and <span class="mono">V-…</span> for values, in the CashierFu ID style?</span><span class="rec">yes, same alphabet as CashierFu IDs.</span></div>
+      <div class="q"><b>3. Placements follow the current version</b><span>Or can a template pin an older version?</span><span class="rec">follow current; pinning recreates the disagreement problem.</span></div>
+      <div class="q"><b>4. Safe vs breaking</b><span>Agree with the table in section 4? Anything you'd move?</span><span class="rec">as drawn.</span></div>
+      <div class="q"><b>5. Who may publish</b><span>Owner only, or any staff with the owner approving breaking changes?</span><span class="rec">owner only to start.</span></div>
+      <div class="q"><b>6. Type rules (the five discussion questions)</b><span>Dictionary as the one source of type · bubbles only with "pick N" set per facet · date precision per facet, and which for Release / Theatrical release / Launch date · image facet vs unit photo slot · scored choice lists keep the ladder or become bubbles with a grade.</span><span class="rec">yes · yes, N per facet · Release: Any, Theatrical: Full date, Launch: Month + year · keep separate for now · bubbles with a small grade under each pick.</span></div>
+      <div class="q"><b>7. Order</b><span>Phase 0 → 5 as listed, or the type rules (Phase 4) sooner?</span><span class="rec">0, 1, 2 first: they stop the drift; the type rules then land once, on solid ground.</span></div>
+    </section>
+  </main>
+</div>
