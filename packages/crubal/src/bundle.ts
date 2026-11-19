@@ -387,6 +387,7 @@ export function bundleOf(p: Parsed): JsonObject {
   for (const s of info.lanes) if (s.version) members[`lane:${s.name}`] = s.version;
   for (const f of info.flows) if (f.version) members[`flow:${f.name}`] = f.version;
   for (const a of info.acts) if (a.version) members[`act:${a.name}`] = a.version;
+  for (const x of info.blocks) if (x.version) members[`block:${x.sort}/${x.name}`] = x.version;
   o.members = members;
   if (dict.kinds.size) o.kinds = [...dict.kinds.values()].map((k) => kindJson(dict, k));
   if (facets.length) o.facets = facets.map(facetJson);
@@ -411,6 +412,8 @@ export function bundleOf(p: Parsed): JsonObject {
   if (info.lanes.length) o.lanes = info.lanes.map(laneJson);
   if (info.flows.length) o.flows = info.flows.map(flowJson);
   if (info.acts.length) o.acts = info.acts.map(actJson);
+  // Revision 58: a prefixed block is carried as written (11.9): its sort and name in one word, its inside line by line.
+  if (info.blocks.length) o.blocks = info.blocks.map((x): JsonObject => ({ block: `${x.sort}/${x.name}`, ...(x.version ? { version: x.version } : {}), lines: [...x.lines] }));
   return o;
 }
 
@@ -665,6 +668,10 @@ export function printBundle(b: JsonObject): string {
   blocks("lanes", laneText);
   blocks("flows", flowText);
   blocks("acts", actText);
+  blocks("blocks", (x) => {
+    const [sort = "", name = ""] = String(x.block).split("/");
+    return [`${sort}: ${name}${typeof x.version === "string" ? ` /${x.version}` : ""}`, ...((x.lines as string[] | undefined) ?? []).map((l) => `  ${l}`)];
+  });
   return `${out.join("\n").trimEnd()}\n`;
 }
 
@@ -782,7 +789,7 @@ export function readBundleInto(b: JsonObject, into: Dictionary = emptyDictionary
 /** An empty Parsed to read packages onto, in order. */
 export function emptyParsed(): Parsed {
   const { perms } = readAccess("");
-  return { info: { name: "", version: "", owner: "", line: 0, crubal: 2, crubalLine: 0, extends: [], prefixes: new Map(), trust: [], dict: emptyDictionary(), contracts: [], header: {}, terms: {}, utilities: [], groups: [], lanes: [], flows: [], acts: [] }, dict: emptyDictionary(), rules: [], contracts: [], views: emptyViewSet(), perms, edges: [], recipes: [], instructions: new Map() };
+  return { info: { name: "", version: "", owner: "", line: 0, crubal: 2, crubalLine: 0, extends: [], prefixes: new Map(), trust: [], dict: emptyDictionary(), contracts: [], header: {}, terms: {}, utilities: [], groups: [], lanes: [], flows: [], acts: [], blocks: [] }, dict: emptyDictionary(), rules: [], contracts: [], views: emptyViewSet(), perms, edges: [], recipes: [], instructions: new Map() };
 }
 
 /**
@@ -793,7 +800,7 @@ export function readBundleOnto(bundle: JsonObject, base: Parsed): Parsed {
   const text = printBundle(bundle);
   readDefinitions(text, base.dict);
   const [info] = readPackages(text);
-  if (info) base.info = { ...info, dict: base.dict, terms: Object.keys(info.terms).length ? info.terms : base.info.terms, utilities: [...base.info.utilities.filter((h) => !info.utilities.some((n) => n.name === h.name)), ...info.utilities], groups: [...base.info.groups.filter((h) => !info.groups.some((n) => n.name === h.name)), ...info.groups], lanes: [...base.info.lanes.filter((h) => !info.lanes.some((n) => n.name === h.name)), ...info.lanes], flows: [...base.info.flows.filter((h) => !info.flows.some((n) => n.name === h.name)), ...info.flows], acts: [...base.info.acts.filter((h) => !info.acts.some((n) => n.name === h.name)), ...info.acts] };
+  if (info) base.info = { ...info, dict: base.dict, terms: Object.keys(info.terms).length ? info.terms : base.info.terms, utilities: [...base.info.utilities.filter((h) => !info.utilities.some((n) => n.name === h.name)), ...info.utilities], groups: [...base.info.groups.filter((h) => !info.groups.some((n) => n.name === h.name)), ...info.groups], lanes: [...base.info.lanes.filter((h) => !info.lanes.some((n) => n.name === h.name)), ...info.lanes], flows: [...base.info.flows.filter((h) => !info.flows.some((n) => n.name === h.name)), ...info.flows], acts: [...base.info.acts.filter((h) => !info.acts.some((n) => n.name === h.name)), ...info.acts], blocks: [...base.info.blocks.filter((h) => !info.blocks.some((n) => n.sort === h.sort && n.name === h.name)), ...info.blocks] };
   const byName = <T extends { name: string }>(have: T[], next: T[]) => [...have.filter((h) => !next.some((n) => n.name === h.name)), ...next];
   base.rules = byName(base.rules, readRules(text));
   base.contracts = byName(base.contracts, readContracts(text));

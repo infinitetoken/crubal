@@ -48,7 +48,7 @@ disagree, one of them is a bug; it is fixed in a new version of both.
 ## 13.5 Extensions
 
 A package extends CRUBAL only through what the chapters allow: prefixed keys, prefixed definition settings,
-prefixed contract parts, new kinds, and new sharing modes defined by their properties. An implementation MAY
+prefixed contract parts, prefixed blocks (11.10, revision 58), new kinds, and new sharing modes defined by their properties. An implementation MAY
 understand a package's extensions; it MUST NOT require them to conform, and MUST carry them when it doesn't.
 
 ## 13.6 Not part of conformance

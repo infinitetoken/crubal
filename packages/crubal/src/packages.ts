@@ -3,12 +3,12 @@
 // extending package may add to what it extends but never change it.
 
 import type { JsonObject } from "./model.ts";
-import { type Dictionary, emptyDictionary, type Facet, readDefinitions, unquote } from "./defs.ts";
+import { type Dictionary, emptyDictionary, type Facet, isPrefixedBlock, readDefinitions, unquote } from "./defs.ts";
 import { LANGUAGE } from "./read-text.ts";
 import { readContracts } from "./store.ts";
 import { type Permissions, readAccess } from "./access.ts";
 import { readViews } from "./views.ts";
-import { CrubalError, type Node, readTree } from "./tree.ts";
+import { CrubalError, innerText, type Node, readTree } from "./tree.ts";
 import { type Act, type ActWhen, checkActList, readAct, readWhen, termsOf } from "./acts.ts";
 
 export type PackageInfo = {
@@ -37,7 +37,23 @@ export type PackageInfo = {
   flows: Flow[];
   /** The acts the package declares in words (15, revision 25), beside the utilities' lists of names. */
   acts: Act[];
+  /** Revision 58: the blocks the package brings under a prefix (11.9), carried as written and understood by whoever owns the prefix. */
+  blocks: PrefixedBlock[];
 };
+
+/**
+ * Revision 58 (11.9, 13.5): a block under a prefix, `<prefix>:<word>: <name> /<version>`. The engine reads its
+ * first line and nothing inside it: `lines` is the inside as written, comments removed, indentation kept
+ * relative to the first line. It is a member that holds no value (`block:<prefix>:<word>/<name>`).
+ */
+export type PrefixedBlock = { sort: string; name: string; version: string; lines: string[]; line: number };
+
+function readPrefixedBlock(node: Node): PrefixedBlock {
+  const [name = "", version = ""] = node.value.split(/\s+\//).map((s) => s.trim());
+  if (!/^[A-Za-z][\w-]*$/.test(name)) throw new CrubalError(`a prefixed block is "${node.key}: <name> /<version>", the name one word: ${node.value}`, node.line);
+  const inside = innerText(node);
+  return { sort: node.key as string, name, version, lines: inside ? inside.split("\n") : [], line: node.line };
+}
 
 /**
  * A utility block (11.1): a named, versioned tool a platform mounts for the presets, relations or audiences
@@ -641,7 +657,7 @@ export function readPackages(source: string): PackageInfo[] {
     const [head, ...rest] = readTree(text);
     if (!head) throw new CrubalError("an empty package", start + 1);
     const [name = "", version = ""] = head.value.split(/\s+\//).map((s) => s.trim());
-    const info: PackageInfo = { name, version, owner: "", line: head.line, crubal: LANGUAGE, crubalLine: head.line, extends: [], prefixes: new Map(), trust: [], dict: emptyDictionary(), contracts: [], header: {}, terms: {}, utilities: [], groups: [], lanes: [], flows: [], acts: [] };
+    const info: PackageInfo = { name, version, owner: "", line: head.line, crubal: LANGUAGE, crubalLine: head.line, extends: [], prefixes: new Map(), trust: [], dict: emptyDictionary(), contracts: [], header: {}, terms: {}, utilities: [], groups: [], lanes: [], flows: [], acts: [], blocks: [] };
     for (const c of head.children) {
       if (c.key === "owner") info.owner = c.value;
       if (c.key === "crubal") {
@@ -679,6 +695,11 @@ export function readPackages(source: string): PackageInfo[] {
         const f = readFlow(node);
         if (info.flows.some((x) => x.name === f.name)) throw new CrubalError(`the flow ${f.name} twice in one package`, node.line);
         info.flows.push(f);
+      }
+      if (isPrefixedBlock(node.key)) {
+        const b = readPrefixedBlock(node);
+        if (info.blocks.some((x) => x.sort === b.sort && x.name === b.name)) throw new CrubalError(`the ${b.sort} ${b.name} twice in one package`, node.line);
+        info.blocks.push(b);
       }
       if (node.key === "act") {
         const a = readAct(node);
