@@ -8,7 +8,7 @@ import { test } from "node:test";
 import { parseCondition, reads } from "../src/conditions.ts";
 import { readDefinitions } from "../src/defs.ts";
 import type { Record } from "../src/model.ts";
-import { Engine, readRules } from "../src/rules.ts";
+import { checkRules, Engine, readRules } from "../src/rules.ts";
 
 const dict = readDefinitions(`
 kind: item
@@ -70,4 +70,28 @@ test("a value in tiers: the approved, else the ones from before, else the units'
   assert.deepEqual(made([{ shot: img("g.jpg"), shows: "cover", origin: "gathered" }, { shot: img("a.jpg"), shows: "cover" }]), ["approved", ["a.jpg"]]);
   // No unit holds a picture and the product none: nothing is produced.
   assert.equal(made([], [unit("U-3", [])]), null);
+});
+
+test("0.4.7: a rule that reads below the key it produces above is no circle; two rules that feed each other still are", () => {
+  assert.doesNotThrow(() => checkRules(rules, dict));
+  const circle = readRules(`rule: a
+  for: product::
+  then: title is "{images}"
+  strength: should
+rule: b
+  for: product::
+  when: title has
+  then: images is join of shots[*].shot
+  strength: should
+rule: c
+  for: product::
+  then: shots is join of unit::title
+  strength: should
+rule: d
+  for: product::
+  when: count of shots[*] where shows is cover over 0
+  then: title is "x"
+  strength: suggest
+`);
+  assert.throws(() => checkRules(circle, dict), /depend on each other/);
 });
