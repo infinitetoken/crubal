@@ -409,7 +409,7 @@ export class PgStore {
       }
       const by: JsonObject = previous ? { migration: `${bundle.package} /${previous} -> ${bundle.package} /${bundle.version}` } : { person: "owner" };
       return { by, extra, out: null };
-      }, at);
+      }, at, {}, next);
     } catch (e) {
       // The bundle goes only when the entry did not: an install whose projection failed after its entry
       // committed kept the entry and lost the bundle, and the store then read "installed but its bundle is
@@ -1378,7 +1378,7 @@ export class PgStore {
    * The same, for an operation that decides its own cause and extra writes as it runs (a border run): it
    * returns `by`, `extra` and an outcome, and the outcome comes back beside the entry.
    */
-  async commitFrom<T>(run: (draft: Draft) => { by: JsonObject; extra?: JsonObject[]; out: T }, at?: string, mark: { witnessed?: true } = {}): Promise<{ entry: Entry | null; out: T }> {
+  async commitFrom<T>(run: (draft: Draft) => { by: JsonObject; extra?: JsonObject[]; out: T }, at?: string, mark: { witnessed?: true } = {}, under?: Parsed): Promise<{ entry: Entry | null; out: T }> {
     return transaction(this.pool, async (client) => {
       // CRUBAL_TRACE_COMMIT=1 prints each phase's time to stderr, for a probe or a slow commit in the field.
       const T0 = Date.now();
@@ -1394,7 +1394,9 @@ export class PgStore {
       let after: State;
       let entry: Entry;
       let result: { by: JsonObject; extra?: JsonObject[]; out: T };
-      const p = await this.definitionsFrom(client, false);
+      // An install derives under the definitions it brings (10.3: produced values are rebuilt by the new
+      // rules): the store's own are still the version before until its entry lands (0.4.5).
+      const p = under ?? (await this.definitionsFrom(client, false));
       tr("definitions");
       for (;;) {
         const had = needs.needs.loaded.size;
