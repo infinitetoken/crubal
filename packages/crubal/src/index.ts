@@ -32,3 +32,4 @@ export { classify, publish, type Change, type PublishOptions } from "./publish.t
 export { compareVersions, latestVersion, nextVersion } from "./versions.ts";
 export { formOf, type FormOptions } from "./forms.ts";
 export { type Act, type ActFind, type ActAlso, type ActRun, firstOf, type ActCond, readWhen, whenHolds, type ActGiven, type ActInput, type ActMake, type ActSum, type ActWhen, type ActNeed, type ActRecord, type ActRef, type ActRoute, type ActSet, type ActTells, type ActWrites, type ActCount, type Routed, actJson, actText, actWrites, givenOf, markFacets, shareOf, checkActList, findPicksOf, mintValuesOf, nextInSeries, readAct, routeCountPicksOf, routeOf, routeRowsOf, tellsValuesOf } from "./acts.ts";
+export { finishable, isFinished, listMark, sayFinished, unsayFinished } from "./finished.ts";

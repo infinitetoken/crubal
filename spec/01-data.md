@@ -222,6 +222,15 @@ rows matched by `key`) for facts that are true of this record and that no class 
 edition number 4522, graded. Notables are data like any other, with sources. A notable key that recurs across
 enough records is proposed as a real facet through review (chapter 9.5); a one-off stays a notable.
 
+**Finished (revision 61).** Having items says the work started, never that it ended. A record MAY say a
+many-valued key, or a part slot (as `parts.<slot>`), is **finished**: every item there is held. It is said
+by a person who may edit the record, with a source; an intake never says it. The record holds it in a
+`finished` member beside its values, by address, with what the list was when it was said. The list is
+finished only while it is still that list: adding or removing an item unsays it, and changing an item's own
+values does not. It is said where the list is stored, so a product's part slot finished says the packing
+list is all there and says nothing of any unit's answers. A rule MAY read it as a value state (6.3.2,
+`languages is finished`); a form gives it among a field's states and as `finished` on a part slot.
+
 ## 1.7 Values down the levels
 
 Every key on an attached record is one of two kinds, and a class line MAY place a key two further ways

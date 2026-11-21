@@ -3,6 +3,7 @@
 // one spelling); and writes run through the rules in order (6.2, 6.4, 6.7, 6.9): refused, held, filled,
 // derived, flagged, incomplete, complete and completeness.
 
+import { isFinished } from "./finished.ts";
 import { aboveBoth, partThrough, readThrough } from "./lifecycle.ts";
 import { type Expr, evaluate, parseCondition, reads, type StateOf } from "./conditions.ts";
 import { aggregateOf, levelStep, rowStep } from "./address.ts";
@@ -325,6 +326,7 @@ export class Engine {
       const v = rec.values[path];
       if (f?.type === "choice" && typeof v === "string" && !(f.values ?? []).some((x) => x.value === v)) s.add("new");
       if (rec.sources?.[path]?.adopted) s.add("adopted");
+      if (rec.finished?.[path] && isFinished(rec, path, this.dict)) s.add("finished");
       return s;
     };
   }

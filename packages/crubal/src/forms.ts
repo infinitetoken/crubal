@@ -4,6 +4,7 @@
 // 14.7). A held arrival's candidates ride along so the person decides on the spot (9.2a). Nothing here
 // writes: submitting is the form's run.
 
+import { isFinished } from "./finished.ts";
 import { offered } from "./dictionary.ts";
 import type { Access } from "./access.ts";
 import type { Arrival } from "./arrival.ts";
@@ -35,7 +36,7 @@ export type FormOptions = {
 type Extra = Record & { alternatives?: { [a: string]: Json[] }; suggestions?: { [a: string]: Json[] }; held?: { [a: string]: JsonObject } };
 
 /** A value's states (6.3.2), as the rules engine reads them. */
-function statesOf(r: Extra | undefined, f: Facet | undefined, key: string): string[] {
+function statesOf(r: Extra | undefined, f: Facet | undefined, key: string, dict?: Dictionary): string[] {
   if (!r) return [];
   const s: string[] = [];
   if (r.alternatives?.[key]?.length) s.push("conflicted");
@@ -44,6 +45,7 @@ function statesOf(r: Extra | undefined, f: Facet | undefined, key: string): stri
   const v = r.values[key];
   if (f?.type === "choice" && typeof v === "string" && !(f.values ?? []).some((x) => x.value === v)) s.push("new");
   if (r.sources?.[key]?.adopted) s.push("adopted");
+  if (dict && r.finished?.[key] && isFinished(r, key, dict)) s.push("finished");
   return s;
 }
 
@@ -94,7 +96,7 @@ function field(line: { facet: string; required?: boolean; values?: string[]; len
   if (mine) {
     const current = vals[line.facet];
     if (current !== undefined) out.current = current;
-    const st = statesOf(r, f, line.facet);
+    const st = statesOf(r, f, line.facet, dict);
     if (st.length) out.state = st;
     // A key held over (1.7, revision 59): the answer in force, the value above it stands over, and whether
     // the record holds one of its own. Clearing its own returns it to the baseline.
@@ -165,6 +167,8 @@ export function formOf(c: Contract, record: Record | undefined, dict: Dictionary
         slot: slot.slot,
         wears: slot.wears,
         ...(slot.fungible ? { fungible: true } : {}),
+        // 1.6 (revision 61): whether the record that holds the slot's rows has said they are all there.
+        ...(isFinished(upOf ?? r, `parts.${slot.slot}`, dict) ? { finished: true } : {}),
         rows: rows.map((p): JsonObject => {
           const pv = (isObj(p.values) ? p.values : {}) as JsonObject;
           const fields = lines
