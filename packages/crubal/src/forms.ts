@@ -4,6 +4,7 @@
 // 14.7). A held arrival's candidates ride along so the person decides on the spot (9.2a). Nothing here
 // writes: submitting is the form's run.
 
+import { offered } from "./dictionary.ts";
 import type { Access } from "./access.ts";
 import type { Arrival } from "./arrival.ts";
 import { evaluate, parseCondition } from "./conditions.ts";
@@ -47,13 +48,17 @@ function statesOf(r: Extra | undefined, f: Facet | undefined, key: string): stri
 }
 
 /** One field: the facet's settings narrowed by the line, and the record's answer. */
-function field(line: { facet: string; required?: boolean; values?: string[]; length?: number; pick?: string; range?: { min: string; max: string }; precision?: string; level?: string; when?: string; frame?: string }, dict: Dictionary, r: Extra | undefined, vals: JsonObject, o: FormOptions, recordId: string | undefined): JsonObject {
+function field(line: { facet: string; required?: boolean; values?: string[]; length?: number; pick?: string; range?: { min: string; max: string }; precision?: string; level?: string; when?: string; optionsFrom?: string; frame?: string }, dict: Dictionary, r: Extra | undefined, vals: JsonObject, o: FormOptions, recordId: string | undefined): JsonObject {
   const f = dict.facets.get(line.facet);
   const key = line.level ? `${line.level}::${line.facet}` : line.facet;
   const out: JsonObject = { key, label: f?.label ?? label(line.facet), type: f?.type ?? "raw" };
   if (f?.ask) out.ask = f.ask;
   if (line.required || f?.required) out.required = true;
-  const allowed = line.values ?? f?.values?.map((v) => v.value);
+  // 5.3.1 (revision 60): options from another key are the values the record reads there; none, and the line is unasked.
+  const offers = line.optionsFrom ? offered(line.optionsFrom, vals) : undefined;
+  if (offers === null) out.asked = false;
+  const allowed = (line.values ?? f?.values?.map((v) => v.value))?.filter((v) => offers === undefined || (offers ?? []).includes(v));
+  if (line.optionsFrom) out.optionsFrom = line.optionsFrom;
   if (f?.type === "choice" && allowed) {
     out.values = allowed.map((v): JsonObject => {
       const cv = f.values?.find((x) => x.value === v);
@@ -166,7 +171,7 @@ export function formOf(c: Contract, record: Record | undefined, dict: Dictionary
             // A line held over or at both is asked above as well as at its level (5.3.3).
             .filter((ln) => !ln.levels.length || ln.levels.includes(r.level) || ln.from.some((x) => x.line.held))
             .map((ln) => {
-              const f = field({ facet: ln.facet, ...(ln.required ? { required: true } : {}), ...(ln.values ? { values: ln.values } : {}), ...(ln.length !== undefined ? { length: ln.length } : {}), ...(ln.pick ? { pick: ln.pick } : {}), ...(ln.range ? { range: ln.range } : {}), ...(ln.when ? { when: ln.when } : {}) }, dict, { ...r, values: pv, alternatives: undefined, suggestions: undefined, held: undefined } as Extra, pv, o, record?.id);
+              const f = field({ facet: ln.facet, ...(ln.optionsFrom ? { optionsFrom: ln.optionsFrom } : {}), ...(ln.required ? { required: true } : {}), ...(ln.values ? { values: ln.values } : {}), ...(ln.length !== undefined ? { length: ln.length } : {}), ...(ln.pick ? { pick: ln.pick } : {}), ...(ln.range ? { range: ln.range } : {}), ...(ln.when ? { when: ln.when } : {}) }, dict, { ...r, values: pv, alternatives: undefined, suggestions: undefined, held: undefined } as Extra, pv, o, record?.id);
               if (owned && !owned.has(ln.facet)) f.editable = false;
               if (owned && bothKeys(dict, [slot.wears], r.level).has(ln.facet)) {
                 const pa = partsAbove.get(String(p.$row))?.values;

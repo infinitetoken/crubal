@@ -1,0 +1,57 @@
+[
+  {
+    "contract": "pressing",
+    "record": "U-10",
+    "origin": "observed",
+    "sections": [
+      {
+        "fields": [
+          {
+            "key": "discFormat",
+            "label": "Disc Format",
+            "type": "choice",
+            "values": [
+              {
+                "value": "DVD-5"
+              },
+              {
+                "value": "DVD-9"
+              }
+            ],
+            "current": "DVD-9",
+            "optionsFrom": "discFormats",
+            "editable": true
+          }
+        ]
+      }
+    ],
+    "submit": {
+      "run": "pressing",
+      "record": "U-10"
+    }
+  },
+  {
+    "contract": "pressing",
+    "record": "U-11",
+    "origin": "observed",
+    "sections": [
+      {
+        "fields": [
+          {
+            "key": "discFormat",
+            "label": "Disc Format",
+            "type": "choice",
+            "values": [],
+            "asked": false,
+            "optionsFrom": "discFormats",
+            "editable": true
+          }
+        ]
+      }
+    ],
+    "submit": {
+      "run": "pressing",
+      "record": "U-11"
+    }
+  }
+]

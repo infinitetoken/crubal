@@ -91,6 +91,15 @@ Outside its condition the facet is **unasked** (5.5), not "does not apply": noth
 flagged, and a value already there is kept. Use a gate (chapter 6.5) when the facet must be `-`. Conditions on
 class lines MUST NOT read the facet they ask for, and the layering check (chapter 6.8) covers them.
 
+**From another key (revision 60).** A choice line MAY end `from <key>` (`unit::resaleMode from resaleModes`):
+the values a record may answer with are the values it reads under that key, a folded key being read from
+above (1.7). So the record above seeds the list and the lower record narrows it. The named key MUST be a
+choice facet whose list holds every value of the line's; a publish refuses it otherwise. A form offers only
+those values; a run stops at its needs on any other (7.4); checked, a value outside them is a
+contradiction citing the line. When the named key holds nothing the line is unasked (5.5). A value held
+when the list later drops it stays: it is a contradiction at the next check, for review, and nothing is
+removed.
+
 ### 5.3.3 Placement
 
 Placement says where and when a facet is collected. It never changes a value.
@@ -241,7 +250,7 @@ Catalogs and other views select records by the classes they wear (chapter 12).
 ```
 
 Each class line is an object with `facet` and the settings it narrows or places, by their chapter 4.6 names,
-plus `level`, `held` (`over` or `both`) and `frame`. A `section` line is an object with only `section`. Narrowed `values` are plain
+plus `level`, `held` (`over` or `both`), `optionsFrom` and `frame`. A `section` line is an object with only `section`. Narrowed `values` are plain
 strings: a class carries no aliases.
 
 ## 5.10 Well-formed classes

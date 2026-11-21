@@ -89,6 +89,8 @@ export type ClassLine = {
    * and a record at the level may hold one of its own that is read in its place. `both`: the value above and
    * the record's own are separate facts, and the record reads nothing through. */
   held?: "over" | "both";
+  /** Revision 60 (5.3.1): the choice offers only the values the record reads under this key. */
+  optionsFrom?: string;
 };
 
 export type PartSlot = { slot: string; wears: string; many: boolean; fungible: boolean; match?: string; line: number };
@@ -260,7 +262,7 @@ function splitOutside(s: string, sep: string, line: number): string[] {
 }
 
 /** The type mark, count and tails of a shorthand line or class line, after its key. */
-type Parsed = { facet: Facet; marked: boolean; count: string | null; whenText?: string; level?: string; required: boolean; frame?: string; held?: "over" | "both" };
+type Parsed = { facet: Facet; marked: boolean; count: string | null; whenText?: string; level?: string; required: boolean; frame?: string; held?: "over" | "both"; optionsFrom?: string };
 
 function parseLine(text: string, line: number): Parsed {
   let s = text.trim();
@@ -351,8 +353,14 @@ function parseLine(text: string, line: number): Parsed {
   const tails = tokens(rest, line);
   let frame: string | undefined;
   let held: "over" | "both" | undefined;
+  let optionsFrom: string | undefined;
   for (let i = 0; i < tails.length; i++) {
     const t = tails[i] as string;
+    if (t === "from" && KEY.test(tails[i + 1] ?? "")) {
+      // Narrowing (5.3.1, revision 60): the values offered are those the record reads under another key.
+      optionsFrom = tails[++i] as string;
+      continue;
+    }
     if ((t === "over" || t === "both") && level) {
       // Placement (5.3.3, revision 59): how the key stands to the value above; it says nothing without a level.
       if (held) throw new CrubalError(`a line is held ${held} or ${t}, never both: ${text}`, line);
@@ -391,7 +399,7 @@ function parseLine(text: string, line: number): Parsed {
     } else if (/^[a-z][\w-]*$/.test(t)) applySetting(facet, t, "yes", line);
     else throw new CrubalError(`unknown tail ${t} in ${text}`, line);
   }
-  return { facet, marked, count, whenText, level, required, ...(frame ? { frame } : {}), ...(held ? { held } : {}) };
+  return { facet, marked, count, whenText, level, required, ...(frame ? { frame } : {}), ...(held ? { held } : {}), ...(optionsFrom ? { optionsFrom } : {}) };
 }
 
 /** Read one shorthand facet line (spec 4.5). */
@@ -545,6 +553,7 @@ export function readClassLine(text: string, line: number, section?: string): Cla
   if (p.whenText) cl.when = p.whenText;
   if (p.frame) cl.frame = p.frame;
   if (p.held) cl.held = p.held;
+  if (p.optionsFrom) cl.optionsFrom = p.optionsFrom;
   if (section) cl.section = section;
   if (p.marked) {
     (cl as ClassLine & { type?: FacetType }).type = f.type;

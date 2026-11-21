@@ -157,6 +157,15 @@ function checkClassLine(c: ClassDef, l: ClassLine, dict: Dictionary) {
     const extra = l.values.filter((v) => !real.has(v));
     if (extra.length) throw new CrubalError(`the class line ${l.text} widens ${f.key}: ${extra.join(", ")} is not one of its values`, l.line);
   }
+  if (l.optionsFrom) {
+    // 5.3.1 (revision 60): the key the options come from is a choice whose list holds every value of this one.
+    const src = dict.facets.get(l.optionsFrom);
+    if (f.type !== "choice") throw new CrubalError(`the class line ${l.text} takes its options from ${l.optionsFrom}, but ${f.key} is not a choice`, l.line);
+    if (!src || src.type !== "choice") throw new CrubalError(`the class line ${l.text} takes its options from ${l.optionsFrom}, which isn't a choice facet`, l.line);
+    const has = new Set((src.values ?? []).map((v) => v.value));
+    const lost = (l.values ?? (f.values ?? []).map((v) => v.value)).filter((v) => !has.has(v));
+    if (lost.length) throw new CrubalError(`the class line ${l.text} takes its options from ${l.optionsFrom}, which has no ${lost.join(", ")}`, l.line);
+  }
   if (l.length !== undefined && f.length !== undefined && l.length > f.length) throw new CrubalError(`the class line ${l.text} widens ${f.key}'s length`, l.line);
   if (l.pick && f.pick !== "any" && (l.pick === "any" || Number(l.pick) > Number(f.pick))) throw new CrubalError(`the class line ${l.text} widens ${f.key}'s pick`, l.line);
   if (l.range && f.range && (Number(l.range.min) < Number(f.range.min) || Number(l.range.max) > Number(f.range.max))) {
@@ -191,6 +200,8 @@ export type ResolvedLine = {
   pick?: string;
   range?: { min: string; max: string };
   levels: string[];
+  /** The key the choice's options come from (5.3.1, revision 60). */
+  optionsFrom?: string;
   when?: string;
   section?: string;
   /** Every line that contributed, as `Class: line`, in resolution order. */
@@ -223,6 +234,7 @@ export function resolve(dict: Dictionary, names: string[], line?: number): Resol
       }
       r.from.push({ cls: c.name, line: l });
       if (l.required) r.required = true;
+      if (l.optionsFrom) r.optionsFrom = l.optionsFrom;
       if (l.level && !r.levels.includes(l.level)) r.levels.push(l.level);
       if (l.when) r.when = r.when ? `(${r.when}) and (${l.when})` : l.when;
       if (l.values) {
@@ -488,23 +500,23 @@ function outcome(record: string, address: string, r: { outcome: string; flag?: s
   return o;
 }
 
-function checkValue(record: string, f: Facet, key: string, v: Json, address: string, narrow: ResolvedLine | undefined, dict?: Dictionary): Outcome[] {
+function checkValue(record: string, f: Facet, key: string, v: Json, address: string, narrow: ResolvedLine | undefined, dict?: Dictionary, offers?: string[] | null): Outcome[] {
   const items = Array.isArray(v) ? v : null;
   const pickLimit = narrow?.pick ?? f.pick;
   if (items) {
     if (pickLimit !== "any" && items.length > Number(pickLimit)) {
       return [{ record, address, outcome: "contradiction", cites: { type: f.key } }];
     }
-    return items.map((item) => itemOutcome(record, f, key, item, `${address}[${JSON.stringify(itemText(f, item))}]`, narrow, dict));
+    return items.map((item) => itemOutcome(record, f, key, item, `${address}[${JSON.stringify(itemText(f, item))}]`, narrow, dict, offers));
   }
-  return [itemOutcome(record, f, key, v, address, narrow, dict)];
+  return [itemOutcome(record, f, key, v, address, narrow, dict, offers)];
 }
 
 function citeLine(cls: string, l: ClassLine): string {
   return `${cls}: ${l.text}`;
 }
 
-function itemOutcome(record: string, f: Facet, _key: string, v: Json, address: string, narrow: ResolvedLine | undefined, dict?: Dictionary): Outcome {
+function itemOutcome(record: string, f: Facet, _key: string, v: Json, address: string, narrow: ResolvedLine | undefined, dict?: Dictionary, offers?: string[] | null): Outcome {
   const base = checkScalar(f, v);
   // A definition link naming nothing the dictionary holds is kept and flagged (4.2.2): a package may come later.
   const sort = definitionSortOf(f);
@@ -516,7 +528,22 @@ function itemOutcome(record: string, f: Facet, _key: string, v: Json, address: s
     const by = narrow.from.find((x) => x.line.values && !x.line.values.includes(c));
     return outcome(record, address, { outcome: "contradiction" }, { rule: by ? citeLine(by.cls, by.line) : f.key });
   }
+  if (narrow?.optionsFrom && offers && typeof c === "string" && !offers.includes(c)) {
+    const by = narrow.from.find((x) => x.line.optionsFrom);
+    return outcome(record, address, { outcome: "contradiction" }, { rule: by ? citeLine(by.cls, by.line) : f.key });
+  }
   return outcome(record, address, base);
+}
+
+/**
+ * The values a line that takes its options from another key offers (5.3.1, revision 60): what the values read
+ * hold under that key. Null when it holds nothing: the line is then unasked.
+ */
+export function offered(optionsFrom: string, values: JsonObject): string[] | null {
+  const v = values[optionsFrom];
+  if (v === undefined || (isObj(v) && "$empty" in v)) return null;
+  const out = (Array.isArray(v) ? v : [v]).map((x) => core(x)).filter((x): x is string => typeof x === "string");
+  return out.length ? out : null;
 }
 
 function isEmptyValue(v: Json | undefined): boolean {
@@ -524,7 +551,8 @@ function isEmptyValue(v: Json | undefined): boolean {
 }
 
 /** Check a record: every value against its facet and worn classes, required facets, and parts. */
-export function checkRecord(r: Record, dict: Dictionary): { outcomes: Outcome[]; summary: Outcome } {
+/** `read`: the values the record reads, its own over those above (1.7), for a line that takes its options from another key. */
+export function checkRecord(r: Record, dict: Dictionary, read: JsonObject = r.values): { outcomes: Outcome[]; summary: Outcome } {
   const outcomes: Outcome[] = [];
   const worn = (r.wears ?? []).filter((w) => dict.classes.has(w));
   const resolved = resolve(dict, worn);
@@ -536,6 +564,8 @@ export function checkRecord(r: Record, dict: Dictionary): { outcomes: Outcome[];
     let holds: Truth = true;
     if (l.when) holds = evaluate(parseCondition(l.when), r.values);
     if (holds !== true) continue;
+    // A line whose options come from a key that holds nothing is unasked (5.3.1).
+    if (l.optionsFrom && !offered(l.optionsFrom, read)) continue;
     asked.push(l.facet);
     if (l.required && isEmptyValue(r.values[l.facet])) {
       missing.push(l.facet);
@@ -550,7 +580,8 @@ export function checkRecord(r: Record, dict: Dictionary): { outcomes: Outcome[];
       outcomes.push({ record: r.id, address: key, outcome: "unknown" });
       continue;
     }
-    outcomes.push(...checkValue(r.id, f, key, v, key, byFacet.get(key), dict));
+    const narrow = byFacet.get(key);
+    outcomes.push(...checkValue(r.id, f, key, v, key, narrow, dict, narrow?.optionsFrom ? offered(narrow.optionsFrom, read) : undefined));
   }
 
   const slots = worn.flatMap((w) => (dict.classes.get(w)?.parts ?? []).map((s) => ({ cls: w, s })));

@@ -1,0 +1,23 @@
+// Options from another key (5.3.1 `from`): the product selects the formats it was pressed in, and a unit's
+// form offers only those. A product that selected none leaves the unit's line unasked.
+discFormats{DVD-5|DVD-9|BD-25|BD-50}*
+contract: pressing
+  kind: form
+  origin: observed
+  needs:
+    discFormat from discFormats
+crubal: 2
+package: test /2026-10-14
+owner: test.example
+
+product: P-10 [origin: declared, via: L-1]
+  title: Christmas Vacation
+  discFormats: DVD-5, DVD-9
+
+unit: U-10 of P-10 [origin: observed, via: L-2]
+  discFormat: DVD-9
+
+product: P-11 [origin: declared, via: L-1]
+  title: Elf
+
+unit: U-11 of P-11 [origin: observed, via: L-3]

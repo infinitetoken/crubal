@@ -3,6 +3,7 @@
 // record. Runs are idempotent (7.5). Offer and take share between owners, and only the overlap flows
 // (7.8). Data crossing a border is verified against the presenter's published key (8.5.1).
 
+import { offered } from "./dictionary.ts";
 import { readThrough } from "./lifecycle.ts";
 import { compareVersions, latestVersion } from "./versions.ts";
 import type { Access, Edge } from "./access.ts";
@@ -463,6 +464,8 @@ export class Exchange {
       const empty = v === undefined || (isObj(v) && "$empty" in v);
       if (l.required && empty) missing.push(l.facet);
       if (!empty && l.values && typeof v === "string" && !l.values.includes(v)) unfit.push(l.facet);
+      // 5.3.1 (revision 60): a choice that takes its options from another key answers only with what that key holds.
+      if (!empty && l.optionsFrom && typeof v === "string" && !(offered(l.optionsFrom, this.effective(r)) ?? []).includes(v)) unfit.push(l.facet);
       if (!empty && l.length !== undefined && typeof v === "string" && [...v].length > l.length) unfit.push(l.facet);
     }
     if (missing.length || unfit.length) return { ...head, stopped: "needs", ...(missing.length ? { missing } : {}), ...(unfit.length ? { unfit } : {}) };
