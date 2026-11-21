@@ -29,10 +29,38 @@ export function emptyStore(): Store {
   return { records: new MemoryRecords(), bindings: new Map(), instructions: new Map(), review: [] };
 }
 
-/** A record's values with everything above it read through (1.7); a record standing alone reads nothing. */
-export function effective(records: RecordSet, r: Record): JsonObject {
+/**
+ * A record's values with everything above it read through (1.7); a record standing alone reads nothing. With
+ * the dictionary, a key held at both at the record's level is not read through: the value above and the
+ * record's own are separate facts.
+ */
+export function effective(records: RecordSet, r: Record, dict?: Dictionary): JsonObject {
   const up = r.of ? records.get(r.of) : undefined;
-  return { ...(up ? effective(records, up) : {}), ...r.values };
+  return { ...(up ? readThrough(dict, up, r, effective(records, up, dict)) : {}), ...r.values };
+}
+
+/** The keys held at both at a record's level (1.7, 5.3.3 `both`), by the classes named. */
+export function bothKeys(dict: Dictionary, wears: string[], level: string): Set<string> {
+  const keys = new Set<string>();
+  for (const w of wears) for (const l of classLines(dict, w)) if (l.level === level && l.held === "both") keys.add(l.facet);
+  return keys;
+}
+
+/** What a record reads from the values above it: all of them, less the keys held at both at its level. */
+export function readThrough(dict: Dictionary | undefined, up: Record, r: Record, above: JsonObject): JsonObject {
+  if (!dict) return above;
+  const both = bothKeys(dict, [...(up.wears ?? []), ...(r.wears ?? [])], r.level);
+  if (!both.size) return above;
+  const out = { ...above };
+  for (const k of both) delete out[k];
+  return out;
+}
+
+/** The values above a record under its keys held at both, each at its level's address (`product::qty`, 1.10). */
+export function aboveBoth(dict: Dictionary, up: Record, r: Record, above: JsonObject): JsonObject {
+  const out: JsonObject = {};
+  for (const k of bothKeys(dict, [...(up.wears ?? []), ...(r.wears ?? [])], r.level)) if (above[k] !== undefined) out[`${up.level}::${k}`] = above[k] as Json;
+  return out;
 }
 
 const isObjV = (v: Json | undefined): v is JsonObject => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -42,9 +70,9 @@ const isObjV = (v: Json | undefined): v is JsonObject => typeof v === "object" &
  * rows with the same keys carrying only the values that vary at its level. Read through, a lower record's
  * part is the part above with its own values over it; a row the record above lacks is its own.
  */
-export function effectiveParts(records: RecordSet, r: Record): JsonObject[] {
+export function effectiveParts(records: RecordSet, r: Record, dict?: Dictionary): JsonObject[] {
   const up = r.of ? records.get(r.of) : undefined;
-  const above = up ? effectiveParts(records, up) : [];
+  const above = up ? effectiveParts(records, up, dict).map((p) => partThrough(dict, p, r.level)) : [];
   const own = (r.parts ?? []).filter(isObjV);
   if (!above.length) return own;
   const byRow = new Map(above.map((p) => [String(p.$row), p]));
@@ -59,6 +87,16 @@ export function effectiveParts(records: RecordSet, r: Record): JsonObject[] {
     byRow.set(row, { ...have, ...p, wears, values: { ...(isObjV(have.values) ? have.values : {}), ...(isObjV(p.values) ? p.values : {}) } });
   }
   return [...byRow.values()];
+}
+
+/** A part above as a record at `level` reads it: its values, less the keys its classes hold at both there. */
+export function partThrough(dict: Dictionary | undefined, part: JsonObject, level: string): JsonObject {
+  if (!dict || !isObjV(part.values)) return part;
+  const both = bothKeys(dict, (Array.isArray(part.wears) ? part.wears : []).map(String), level);
+  if (!both.size) return part;
+  const values = { ...part.values };
+  for (const k of both) delete values[k];
+  return { ...part, values };
 }
 
 /** The keys a record owns on a part it mirrors (1.7 for parts): its level's vary step, and the part classes' `level::` lines at its level. */
@@ -81,6 +119,18 @@ export function ownedKeys(dict: Dictionary, records: RecordSet, r: Record): Set<
   const keys = new Set(dict.vary.get(r.level) ?? []);
   const up = r.of ? records.get(r.of) : undefined;
   for (const w of [...(up?.wears ?? []), ...(r.wears ?? [])]) for (const l of classLines(dict, w)) if (l.level === r.level) keys.add(l.facet);
+  return keys;
+}
+
+/**
+ * The keys a record may hold over the value above (1.7, revision 59): the `over` lines at its level, of the
+ * classes above and on it. Such a key is stored above and read through; a value the record holds of its own
+ * is read in its place, and removing it returns the key to the value above.
+ */
+export function heldOverKeys(dict: Dictionary, records: RecordSet, r: Record): Set<string> {
+  const keys = new Set<string>();
+  const up = r.of ? records.get(r.of) : undefined;
+  for (const w of [...(up?.wears ?? []), ...(r.wears ?? [])]) for (const l of classLines(dict, w)) if (l.level === r.level && l.held === "over") keys.add(l.facet);
   return keys;
 }
 
@@ -162,9 +212,12 @@ function copyDown(store: Records, r: Extra, dict: Dictionary): Extra {
   const up = r.of ? store.records.get(r.of) : undefined;
   if (!up) return r;
   const owned = ownedKeys(dict, store.records, r);
+  // A key held over is read from above until the record says its own (1.7): standing alone, it keeps the
+  // value it was reading.
+  const over = heldOverKeys(dict, store.records, r);
   const out: Extra = { ...r, values: { ...r.values }, sources: { ...(r.sources ?? {}) } };
-  for (const [key, v] of Object.entries(effective(store.records, up))) {
-    if (owned.has(key) || out.values[key] !== undefined) continue;
+  for (const [key, v] of Object.entries(readThrough(dict, up, r, effective(store.records, up, dict)))) {
+    if ((owned.has(key) && !over.has(key)) || out.values[key] !== undefined) continue;
     out.values[key] = v;
     const s = sourceAbove(store, up, key);
     if (s) (out.sources as { [a: string]: Source })[key] = s;

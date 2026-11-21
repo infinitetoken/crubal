@@ -1,0 +1,99 @@
+[
+  {
+    "contract": "note",
+    "record": "U-6",
+    "origin": "observed",
+    "sections": [
+      {
+        "fields": [
+          {
+            "key": "notes",
+            "label": "Notes",
+            "type": "text",
+            "current": "Slim case",
+            "baseline": "Snap case",
+            "own": true,
+            "editable": true
+          },
+          {
+            "key": "condition",
+            "label": "Condition",
+            "type": "choice",
+            "values": [
+              {
+                "value": "NM"
+              },
+              {
+                "value": "VG"
+              },
+              {
+                "value": "G"
+              },
+              {
+                "value": "F"
+              },
+              {
+                "value": "P"
+              }
+            ],
+            "ranked": true,
+            "current": "VG",
+            "editable": true
+          }
+        ]
+      }
+    ],
+    "submit": {
+      "run": "note",
+      "record": "U-6"
+    }
+  },
+  {
+    "contract": "note",
+    "record": "U-7",
+    "origin": "observed",
+    "sections": [
+      {
+        "fields": [
+          {
+            "key": "notes",
+            "label": "Notes",
+            "type": "text",
+            "current": "Snap case",
+            "baseline": "Snap case",
+            "own": false,
+            "editable": true
+          },
+          {
+            "key": "condition",
+            "label": "Condition",
+            "type": "choice",
+            "values": [
+              {
+                "value": "NM"
+              },
+              {
+                "value": "VG"
+              },
+              {
+                "value": "G"
+              },
+              {
+                "value": "F"
+              },
+              {
+                "value": "P"
+              }
+            ],
+            "ranked": true,
+            "editable": true
+          }
+        ]
+      }
+    ],
+    "submit": {
+      "run": "note",
+      "record": "U-7"
+    }
+  }
+]

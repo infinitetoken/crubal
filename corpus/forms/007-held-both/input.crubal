@@ -1,0 +1,44 @@
+// A key held at both (1.7, 5.3.3 `both`): the product says how many discs the release packs, a unit says how
+// many it has, and neither stands in for the other. The form at the unit gives its own answer with the value
+// above beside it; a unit with no answer has none, and the product's is not read as its own. The same on a
+// part it mirrors.
+contract: count
+  kind: form
+  origin: observed
+  needs:
+    discs
+class: CountedDisc
+  for: item
+  facets:
+    discFormat
+    discs
+    unit::discs both
+class: Counted
+  for: item
+  facets:
+    title
+    discs
+    unit::discs both
+  parts:
+    disc: CountedDisc *
+crubal: 2
+package: test /2026-10-14
+owner: test.example
+
+product: P-8 [origin: declared, via: L-1]
+  crubal:wears: Counted
+  title: Christmas Vacation
+  discs: 2
+  crubal:parts:
+    - [row: disc1]
+      crubal:wears: CountedDisc
+      discFormat: DVD-9
+      discs: 2
+
+unit: U-8 of P-8 [origin: observed, via: L-2]
+  discs: 1
+  crubal:parts:
+    - [row: disc1]
+      discs: 1
+
+unit: U-9 of P-8 [origin: observed, via: L-3]

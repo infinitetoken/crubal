@@ -1,0 +1,130 @@
+[
+  {
+    "contract": "count",
+    "record": "U-8",
+    "origin": "observed",
+    "sections": [
+      {
+        "fields": [
+          {
+            "key": "discs",
+            "label": "Discs",
+            "type": "number",
+            "current": "1",
+            "above": "2",
+            "editable": true
+          }
+        ]
+      }
+    ],
+    "parts": [
+      {
+        "slot": "disc",
+        "wears": "CountedDisc",
+        "rows": [
+          {
+            "row": "disc1",
+            "fields": [
+              {
+                "key": "discFormat",
+                "label": "Disc Format",
+                "type": "choice",
+                "values": [
+                  {
+                    "value": "DVD-5"
+                  },
+                  {
+                    "value": "DVD-9"
+                  },
+                  {
+                    "value": "BD-25"
+                  },
+                  {
+                    "value": "BD-50"
+                  }
+                ],
+                "current": "DVD-9",
+                "editable": false
+              },
+              {
+                "key": "discs",
+                "label": "Discs",
+                "type": "number",
+                "current": "1",
+                "above": "2",
+                "editable": true
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "submit": {
+      "run": "count",
+      "record": "U-8"
+    }
+  },
+  {
+    "contract": "count",
+    "record": "U-9",
+    "origin": "observed",
+    "sections": [
+      {
+        "fields": [
+          {
+            "key": "discs",
+            "label": "Discs",
+            "type": "number",
+            "above": "2",
+            "editable": true
+          }
+        ]
+      }
+    ],
+    "parts": [
+      {
+        "slot": "disc",
+        "wears": "CountedDisc",
+        "rows": [
+          {
+            "row": "disc1",
+            "fields": [
+              {
+                "key": "discFormat",
+                "label": "Disc Format",
+                "type": "choice",
+                "values": [
+                  {
+                    "value": "DVD-5"
+                  },
+                  {
+                    "value": "DVD-9"
+                  },
+                  {
+                    "value": "BD-25"
+                  },
+                  {
+                    "value": "BD-50"
+                  }
+                ],
+                "current": "DVD-9",
+                "editable": false
+              },
+              {
+                "key": "discs",
+                "label": "Discs",
+                "type": "number",
+                "above": "2",
+                "editable": true
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "submit": {
+      "run": "count",
+      "record": "U-9"
+    }
+  }
+]

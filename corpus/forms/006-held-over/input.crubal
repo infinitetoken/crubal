@@ -1,0 +1,30 @@
+// A key held over (1.7, 5.3.3 `over`): the product publishes the value, a unit reads it and may hold one of
+// its own, read in its place. The form at the unit gives the answer in force, the baseline it stands over,
+// and whether the unit holds its own: U-6 does, U-7 reads the product's.
+contract: note
+  kind: form
+  origin: observed
+  needs:
+    notes
+    condition
+class: Noted
+  for: item
+  facets:
+    title
+    notes
+    unit::notes over
+    unit::condition
+crubal: 2
+package: test /2026-10-14
+owner: test.example
+
+product: P-6 [origin: declared, via: L-1]
+  crubal:wears: Noted
+  title: Christmas Vacation
+  notes: Snap case
+
+unit: U-6 of P-6 [origin: observed, via: L-2]
+  notes: Slim case
+  condition: VG
+
+unit: U-7 of P-6 [origin: observed, via: L-3]

@@ -3,6 +3,7 @@
 // counts follow the other picks; audiences and show rules decide visibility, and roles narrow an audience;
 // a view's read set decides which projection rows go stale.
 
+import { readThrough } from "./lifecycle.ts";
 import type { Access } from "./access.ts";
 import { serialize } from "./canonical.ts";
 import { evaluate, parseCondition } from "./conditions.ts";
@@ -527,7 +528,7 @@ export class Views {
 
   private effective(r: Record): JsonObject {
     const up = r.of ? this.records.get(r.of) : undefined;
-    return { ...(up ? this.effective(up) : {}), ...r.values };
+    return { ...(up ? readThrough(this.dict, up, r, this.effective(up)) : {}), ...r.values };
   }
 
   /** The classes a record wears, those of the records above it included (5.5). */
@@ -575,7 +576,11 @@ export class Views {
     // A level prefix reads the records below at that level, or the record itself when it sits there
     // (a standing-alone lower record answers for its own level, 1.7).
     if (m && r.level === m[1]) return this.valuesAt(r, m[2] as string);
-    if (m) return this.below(r, m[1] as string).flatMap((u) => this.valuesAt(u, m[2] as string));
+    if (m) {
+      // A level above reads the record there (1.10): how a key held at both names the value above it.
+      for (let up = r.of ? this.records.get(r.of) : undefined; up; up = up.of ? this.records.get(up.of) : undefined) if (up.level === m[1]) return this.valuesAt(up, m[2] as string);
+      return this.below(r, m[1] as string).flatMap((u) => this.valuesAt(u, m[2] as string));
+    }
     const v = this.effective(r)[address];
     return v === undefined ? [] : Array.isArray(v) ? v : [v];
   }

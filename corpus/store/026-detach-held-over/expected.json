@@ -1,0 +1,49 @@
+{
+  "crubal": "2",
+  "records": [
+    {
+      "id": "U-1",
+      "kind": "item",
+      "level": "unit",
+      "owner": "test.example",
+      "values": {
+        "title": "Christmas Vacation",
+        "notes": "Snap case"
+      },
+      "sources": {
+        "*": {
+          "origin": "observed",
+          "via": "L-2"
+        },
+        "title": {
+          "origin": "declared",
+          "via": "L-1"
+        },
+        "notes": {
+          "origin": "declared",
+          "via": "L-1"
+        }
+      }
+    },
+    {
+      "id": "U-2",
+      "kind": "item",
+      "level": "unit",
+      "owner": "test.example",
+      "values": {
+        "title": "Christmas Vacation",
+        "notes": "Slim case"
+      },
+      "sources": {
+        "*": {
+          "origin": "observed",
+          "via": "L-3"
+        },
+        "title": {
+          "origin": "declared",
+          "via": "L-1"
+        }
+      }
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Origins: both, over, options from above, finished (proposal, 2026-11-20)
 
-**Status:** proposed, nothing ruled, nothing built. Written for the operator to correct. The need comes from
+**Status:** ruled 2026-11-20 (the six questions at the end, all as proposed; on `both`: "don't assume based on the parent template"). `over` and `both` are built on this branch as revision 59 (spec 1.7, 1.10, 5.3.3; tests `held-over`, `held-both`; corpus forms/006, forms/007, store/026). Not built: the refusal of an undeclared lower value (question 5), `from`, finished. Written for the operator to correct. The need comes from
 CashierFu's brief 128 (`cashierfu/docs/cashierfu/128-engine-audit.md`): Media Encyclopedia 1.0's facet design
 had four traits this language cannot say. Each is given here as what it means, the spec text it would
 change, what the code does today, and the size of the change. The open questions are at the end.
