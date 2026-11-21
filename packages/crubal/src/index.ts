@@ -23,7 +23,7 @@ export { AUDIENCES, checkViews, emptyViewSet, MARK_DONE, MARK_OPEN, partitionOf,
 export { applyEntry, diffWrites, differs, emptyState, Journal, rebuild, recordAt, redactable, redactableWrite, redactWrite, stateJson, type Draft, type Entry, type State, type Write } from "./log.ts";
 export { MemoryRecords, type RecordSet } from "./records.ts";
 export { arrive, decide, surviving, type Arrival, type ArrivalStore } from "./arrival.ts";
-export { aboveBoth, apply, archive, attach, bothKeys, detach, effective, emptyStore, foldUp, heldOverKeys, issue, issuersFor, merge, ownedKeys, partThrough, pending, readThrough, readInstructionBlocks, unarchive, type Instruction, type Records, type Store } from "./lifecycle.ts";
+export { aboveBoth, apply, archive, attach, bothKeys, detach, effective, emptyStore, foldUp, heldOverKeys, issue, issuersFor, merge, ownedKeys, partThrough, pending, placedKeys, readThrough, wornBy, readInstructionBlocks, unarchive, type Instruction, type Records, type Store } from "./lifecycle.ts";
 export { addressPath, holdText, readHold, SURFACE_VERBS, surfaceAnswer, surfaceOf, type SurfaceAnswer, type SurfaceLine, type SurfaceNode, type SurfaceVerb } from "./surface.ts";
 export { Access, checkPermissions, followersOn, foreign, MODES, readAccess, VERBS, type Edge, type Effective, type MenuItem, type Mode, type Permissions, type Preset } from "./access.ts";
 export { isSchedule, nextTick, readSchedule, ticksDue, type Schedule } from "./schedule.ts";

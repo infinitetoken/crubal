@@ -46,10 +46,27 @@ export function bothKeys(dict: Dictionary, wears: string[], level: string): Set<
   return keys;
 }
 
+/**
+ * The classes a record wears: its kind's base class, whether or not `wears` lists it (5.5), then its own.
+ * With the record above, the classes that say what this record holds: the ones above, then its own.
+ */
+export function wornBy(dict: Dictionary, r: Record | undefined): string[] {
+  if (!r) return [];
+  const base = dict.kinds.get(r.kind)?.base;
+  return [...new Set([...(base ? [base] : []), ...(r.wears ?? [])])];
+}
+
+/** The keys the classes named place at a level (5.3.3: a `level::` line declares a vary step beside the kind's own). */
+export function placedKeys(dict: Dictionary, wears: string[], level: string): Set<string> {
+  const keys = new Set<string>();
+  for (const w of wears) for (const l of classLines(dict, w)) if (l.level === level) keys.add(l.facet);
+  return keys;
+}
+
 /** What a record reads from the values above it: all of them, less the keys held at both at its level. */
 export function readThrough(dict: Dictionary | undefined, up: Record, r: Record, above: JsonObject): JsonObject {
   if (!dict) return above;
-  const both = bothKeys(dict, [...(up.wears ?? []), ...(r.wears ?? [])], r.level);
+  const both = bothKeys(dict, [...wornBy(dict, up), ...wornBy(dict, r)], r.level);
   if (!both.size) return above;
   const out = { ...above };
   for (const k of both) delete out[k];
@@ -59,7 +76,7 @@ export function readThrough(dict: Dictionary | undefined, up: Record, r: Record,
 /** The values above a record under its keys held at both, each at its level's address (`product::qty`, 1.10). */
 export function aboveBoth(dict: Dictionary, up: Record, r: Record, above: JsonObject): JsonObject {
   const out: JsonObject = {};
-  for (const k of bothKeys(dict, [...(up.wears ?? []), ...(r.wears ?? [])], r.level)) if (above[k] !== undefined) out[`${up.level}::${k}`] = above[k] as Json;
+  for (const k of bothKeys(dict, [...wornBy(dict, up), ...wornBy(dict, r)], r.level)) if (above[k] !== undefined) out[`${up.level}::${k}`] = above[k] as Json;
   return out;
 }
 
@@ -118,7 +135,7 @@ function classLines(dict: Dictionary, name: string, seen = new Set<string>()): C
 export function ownedKeys(dict: Dictionary, records: RecordSet, r: Record): Set<string> {
   const keys = new Set(dict.vary.get(r.level) ?? []);
   const up = r.of ? records.get(r.of) : undefined;
-  for (const w of [...(up?.wears ?? []), ...(r.wears ?? [])]) for (const l of classLines(dict, w)) if (l.level === r.level) keys.add(l.facet);
+  for (const w of [...wornBy(dict, up), ...wornBy(dict, r)]) for (const l of classLines(dict, w)) if (l.level === r.level) keys.add(l.facet);
   return keys;
 }
 
@@ -130,7 +147,7 @@ export function ownedKeys(dict: Dictionary, records: RecordSet, r: Record): Set<
 export function heldOverKeys(dict: Dictionary, records: RecordSet, r: Record): Set<string> {
   const keys = new Set<string>();
   const up = r.of ? records.get(r.of) : undefined;
-  for (const w of [...(up?.wears ?? []), ...(r.wears ?? [])]) for (const l of classLines(dict, w)) if (l.level === r.level && l.held === "over") keys.add(l.facet);
+  for (const w of [...wornBy(dict, up), ...wornBy(dict, r)]) for (const l of classLines(dict, w)) if (l.level === r.level && l.held === "over") keys.add(l.facet);
   return keys;
 }
 

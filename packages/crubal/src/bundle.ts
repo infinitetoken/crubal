@@ -182,6 +182,9 @@ export function recipeJson(r: Recipe): JsonObject {
       case "recompute":
         o.recompute = true;
         break;
+      case "rows":
+        o.rows = { to: s.to, as: s.as, set: s.set.map(([k, v]) => ({ child: k, value: v })) };
+        break;
       case "fill":
         o.fill = { value: s.value, ...(s.level ? { level: s.level } : {}), ...(s.when ? { when: s.when } : {}) };
         break;
@@ -567,6 +570,7 @@ function recipeText(r: JsonObject): string[] {
     if (typeof s.review === "string") out.push(`    review: ${s.review}`);
     if (s.recompute === true) out.push("    recompute");
     if (isObj(s.fill)) out.push(`    fill: ${q(String(s.fill.value))}`, ...(typeof s.fill.level === "string" ? [`      for: ${s.fill.level}::`] : []), ...(typeof s.fill.when === "string" ? [`      when: ${s.fill.when}`] : []));
+    if (isObj(s.rows)) out.push(`    rows: -> ${s.rows.to}`, `      as: ${s.rows.as}`, ...((s.rows.set as JsonObject[]) ?? []).map((m) => `      ${m.child}: ${q(String(m.value))}`));
     if (isObj(s.parts)) out.push(`    parts: -> ${s.parts.to}`, ...(typeof s.parts.when === "string" ? [`      when: ${s.parts.when}`] : []), ...((s.parts.map as JsonObject[]) ?? []).map((m) => `      ${m.from} -> ${m.to}`));
   }
   return out;

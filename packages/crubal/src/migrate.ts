@@ -27,7 +27,9 @@ export type Step =
   /** `fill: value` with `for: level::` and `when:` beneath: records lacking the key get the value (10.3). */
   | { verb: "fill"; facet: string; value: string; level?: string; when?: string; line: number; text: string }
   /** `parts: -> slot` under a compound, with `when:` and `child -> facet` lines beneath: the compound's rows become parts of the slot (10.3, 5.6). */
-  | { verb: "parts"; facet: string; to: string; when?: string; map: [string, string][]; line: number; text: string };
+  | { verb: "parts"; facet: string; to: string; when?: string; map: [string, string][]; line: number; text: string }
+  /** `rows: -> compound` under a many-valued facet, with `as: child` and `child: value` lines beneath: each item becomes a row of the compound (10.3, revision 63). */
+  | { verb: "rows"; facet: string; to: string; as: string; set: [string, string][]; line: number; text: string };
 
 export type Recipe = { from: string; to: string; steps: Step[]; line: number };
 
@@ -133,6 +135,22 @@ export function readRecipes(source: string): Recipe[] {
             recipe.steps.push({ verb: "parts", to, ...(when ? { when } : {}), map, ...base });
             break;
           }
+          case "rows": {
+            // Each item of the facet becomes a row of the compound named (revision 63): `as:` says which child
+            // holds the item, and each `child: value` line is said on every row made. The facet's own value goes.
+            const [, to] = arrow(s.value, s.line);
+            if (!to) throw new CrubalError(`rows names the compound the items become rows of: "rows: -> shots"`, s.line);
+            let as: string | undefined;
+            const set: [string, string][] = [];
+            for (const b of s.children) {
+              if (b.kind !== "pair" || !b.key) throw new CrubalError(`rows takes "as: child" and "child: value" lines beneath it, not ${b.text}`, b.line);
+              if (b.key === "as") as = b.value.trim();
+              else set.push([b.key, unq(b.value)]);
+            }
+            if (!as) throw new CrubalError(`rows says which child holds each item: "as: shot"`, s.line);
+            recipe.steps.push({ verb: "rows", to, as, set, ...base });
+            break;
+          }
           default:
             throw new CrubalError(`unknown recipe step: ${s.text}`, s.line);
         }
@@ -169,6 +187,13 @@ export function checkRecipe(r: Recipe, dict: Dictionary): void {
         if (t && t.type === "compound") throw new CrubalError(`${to} is a compound; a part's child takes a plain facet`, s.line);
       }
       if (s.when) parseCondition(s.when, s.line);
+    }
+    if (s.verb === "rows") {
+      const c = dict.facets.get(s.to);
+      // A compound of an extended package (11.4) is not in this package's own definitions: as with a `parts`
+      // step's slot, it is left to the install, which reads the recipe under the merged dictionary.
+      if (c && c.type !== "compound") throw new CrubalError(`${s.to} is not a compound of ${r.to}`, s.line);
+      if (c) for (const k of [s.as, ...s.set.map(([k]) => k)]) if (!c.children?.has(k)) throw new CrubalError(`${k} is not a child of ${s.to}`, s.line);
     }
     if (s.verb === "fill") {
       if (!f) throw new CrubalError(`${s.facet} is not a facet of ${r.to}`, s.line);
@@ -264,6 +289,41 @@ export function restamp(records: Record[], recipe: Recipe, dict: Dictionary, sta
             delete sources[s.facet];
           }
           break;
+        case "rows": {
+          // Each item becomes a row of the compound (revision 63), after the rows it holds; an item a row
+          // already holds under the child is not made a row again, so the step run twice makes nothing twice.
+          const c = dict.facets.get(s.to);
+          const items = (Array.isArray(v) ? v : [v as Json]).filter((x) => x !== undefined && x !== null);
+          const have = (Array.isArray(values[s.to]) ? (values[s.to] as Json[]) : values[s.to] !== undefined ? [values[s.to] as Json] : []).filter(isObj);
+          const held = new Set(have.map((row) => serialize((row[s.as] ?? null) as Json)));
+          const made: JsonObject[] = [];
+          for (const item of items) {
+            if (held.has(serialize(item))) continue;
+            held.add(serialize(item));
+            const row: JsonObject = { [s.as]: item };
+            for (const [k, text] of s.set) {
+              const child = c?.children?.get(k);
+              let read: Json | undefined = text;
+              if (child && child.type !== "text") {
+                try {
+                  read = readUnder(child, text, dict);
+                } catch {
+                  read = text;
+                }
+              }
+              if (read !== undefined) row[k] = read;
+            }
+            made.push(row);
+          }
+          if (have.length || made.length) values[s.to] = [...have, ...made];
+          {
+            const src = sources[s.facet] ?? sources["*"];
+            if (src && made.length && !sources[s.to]) sources[s.to] = src;
+            delete sources[s.facet];
+          }
+          delete values[s.facet];
+          break;
+        }
         case "hand":
           // The key is another package's now (10.3): the value stays where it is, under the same address, for that
           // package's definition to read; nothing is moved, held or recomputed.
