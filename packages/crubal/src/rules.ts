@@ -7,6 +7,7 @@ import { isFinished } from "./finished.ts";
 import { aboveBoth, partThrough, placedKeys, readThrough, wornBy } from "./lifecycle.ts";
 import { type Expr, evaluate, parseCondition, reads, type StateOf } from "./conditions.ts";
 import { aggregateOf, levelStep, rowStep } from "./address.ts";
+import { serialize } from "./canonical.ts";
 import { type Dictionary, type Facet, unquote } from "./defs.ts";
 import { resolve } from "./dictionary.ts";
 import type { Json, JsonObject, Record } from "./model.ts";
@@ -383,7 +384,7 @@ export class Engine {
     for (const r of this.rules) {
       if (r.strength !== "must" || r.produces || !this.applies(r, rec)) continue;
       const vals = this.effective(rec);
-      if (r.when && evaluate(r.when, vals, this.states(rec, none), this.now) !== true) continue;
+      if (r.when && evaluate(r.when, this.seen(r.when, vals, rec), this.states(rec, none), this.now) !== true) continue;
       if (r.thenText.endsWith(" is unique")) {
         const key = r.thenText.replace(/ is unique$/, "");
         if (touched.has(key) && this.uniqueClash(r, rec)) return { record: rec.id, result: "refused", address: key, rule: r.name };
@@ -415,7 +416,7 @@ export class Engine {
     for (const r of this.rules) {
       if (r.strength !== "must" || r.produces || !this.applies(r, rec)) continue;
       const vals = this.effective(rec);
-      if (r.when && evaluate(r.when, vals, this.states(rec, held), this.now) !== true) continue;
+      if (r.when && evaluate(r.when, this.seen(r.when, vals, rec), this.states(rec, held), this.now) !== true) continue;
       if (r.thenText.endsWith(" is unique")) {
         const key = r.thenText.replace(/ is unique$/, "");
         if (this.uniqueClash(r, rec)) {
@@ -446,7 +447,7 @@ export class Engine {
       if (!gate) continue;
       const key = gate[1] as string;
       if (held.has(key) || rec.values[key] !== undefined || !this.storesAt(key, rec)) continue;
-      if (r.when && evaluate(r.when, visible(), this.states(rec, held), this.now) !== true) continue;
+      if (r.when && evaluate(r.when, this.seen(r.when, visible(), rec), this.states(rec, held), this.now) !== true) continue;
       rec.values[key] = { $empty: "n/a" };
       produced.add(key);
       results.push({ record: rec.id, result: "filled", address: key, value: { $empty: "n/a" }, rule: r.name });
@@ -458,7 +459,7 @@ export class Engine {
       const { key, kind, right } = r.produces;
       if (!this.storesAt(key, rec)) continue;
       const vals = visible();
-      if (r.when && evaluate(r.when, vals, this.states(rec, held), this.now) !== true) continue;
+      if (r.when && evaluate(r.when, this.seen(r.when, vals, rec), this.states(rec, held), this.now) !== true) continue;
       const current = rec.values[key];
       const mine = produced.has(key);
       if (kind === "fill") {
@@ -492,7 +493,7 @@ export class Engine {
     const vals = visible();
     for (const r of this.rules) {
       if (r.produces || !this.applies(r, rec)) continue;
-      if (r.when && evaluate(r.when, vals, this.states(rec, held), this.now) !== true) continue;
+      if (r.when && evaluate(r.when, this.seen(r.when, vals, rec), this.states(rec, held), this.now) !== true) continue;
       if (r.thenText.endsWith(" is unique")) continue;
       const truth = r.then ? evaluate(r.then, vals, this.states(rec, held), this.now) : true;
       const path = this.pathOf(r.then);
@@ -571,6 +572,24 @@ export class Engine {
     return out;
   }
 
+  /**
+   * What a condition reads, with its aggregates over rows, parts and lower levels answered (6.3: a path is an
+   * address or an aggregate): `count of shots[*] where shows is cover over 0`. A condition's own evaluator
+   * reads values by key; an aggregate that needs the record is answered here and handed to it under its text.
+   */
+  private seen(when: Expr, vals: JsonObject, rec: Record): JsonObject {
+    let out = vals;
+    for (const path of reads(when)) {
+      const agg = aggregateOf(path);
+      if (!agg || !(agg.where || agg.address.includes("[*]") || agg.address.includes("::") || agg.address.startsWith("parts"))) continue;
+      const v = this.rollup(path, rec);
+      if (out === vals) out = { ...vals };
+      if (v === undefined) delete out[path];
+      else out[path] = v;
+    }
+    return out;
+  }
+
   /** A rollup over parts (`worst of parts[*].condition`) or over a lower level (`count of unit::cashierfuId`). */
   rollup(right: string, rec: Record): Json | undefined {
     const agg = aggregateOf(right);
@@ -630,7 +649,13 @@ export class Engine {
     };
     if (how === "least" || how === "worst") return picked(Math.min(...nums));
     if (how === "most" || how === "best") return picked(Math.max(...nums));
-    if (how === "join") return items;
+    // A join gathers into one list: an item that is itself a list (a many-valued key read from each record
+    // below, `join of unit::images`) gives its items, the same value once (0.4.6; before, a list of lists).
+    if (how === "join") {
+      const flat = items.flatMap((v) => (Array.isArray(v) ? v : [v]));
+      const seen = new Set<string>();
+      return flat.filter((v) => (seen.has(serialize(v)) ? false : (seen.add(serialize(v)), true)));
+    }
     return items.at(-1);
   }
 
