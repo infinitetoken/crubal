@@ -48,6 +48,12 @@ export type Record = {
   values: JsonObject;
   parts?: Json[];
   sources?: { [address: string]: Source };
+  /**
+   * Revision 61 (1.6): the lists a person has said are all there, by address: a many-valued key, or a part
+   * slot as `parts.<slot>`. Each holds what the list was then (`of`) and who said it; the list is finished
+   * only while it is still that list, so adding or removing an item unsays it without a write.
+   */
+  finished?: { [address: string]: { of: string; source?: Source } };
 };
 
 export type Wrapper = {
@@ -57,7 +63,7 @@ export type Wrapper = {
   records: Record[];
 };
 
-const RECORD_MEMBERS = new Set(["id", "kind", "level", "of", "owner", "within", "status", "applied", "wears", "created", "updated", "values", "parts", "sources", "alternatives", "suggestions", "held"]);
+const RECORD_MEMBERS = new Set(["id", "kind", "level", "of", "owner", "within", "status", "applied", "wears", "created", "updated", "values", "parts", "sources", "alternatives", "suggestions", "held", "finished"]);
 
 const isObj = (v: Json | undefined): v is JsonObject => typeof v === "object" && v !== null && !Array.isArray(v);
 

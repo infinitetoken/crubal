@@ -1,0 +1,21 @@
+// Detaching a unit that reads a key held over (1.7): it keeps the value it was reading; one that held its
+// own keeps its own.
+class: Noted
+  for: item
+  facets:
+    title
+    notes
+    unit::notes over
+crubal: 2
+package: test /2026-10-14
+owner: test.example
+
+product: P-1 [origin: declared, via: L-1]
+  crubal:wears: Noted
+  title: Christmas Vacation
+  notes: Snap case
+
+unit: U-1 of P-1 [origin: observed, via: L-2]
+
+unit: U-2 of P-1 [origin: observed, via: L-3]
+  notes: Slim case

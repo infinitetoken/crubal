@@ -3,6 +3,8 @@
 // record. Runs are idempotent (7.5). Offer and take share between owners, and only the overlap flows
 // (7.8). Data crossing a border is verified against the presenter's published key (8.5.1).
 
+import { offered } from "./dictionary.ts";
+import { readThrough } from "./lifecycle.ts";
 import { compareVersions, latestVersion } from "./versions.ts";
 import type { Access, Edge } from "./access.ts";
 import { arrive, type Arrival } from "./arrival.ts";
@@ -405,14 +407,19 @@ export class Exchange {
   /** A record's values with everything above it read through (1.7). */
   effective(r: Record): JsonObject {
     const up = r.of ? this.records.get(r.of) : undefined;
-    return { ...(up ? this.effective(up) : {}), ...r.values };
+    return { ...(up ? readThrough(this.dict, up, r, this.effective(up)) : {}), ...r.values };
   }
 
   /** The value an address names from a record, with a level prefix reading that level. */
   private read(r: Record, address: string): Json | undefined {
     const m = address.match(/^(\w+)::(.+)$/);
     // A level prefix reads the record at that level: the run's record itself, when it sits there.
-    if (m) return r.level === m[1] ? this.effective(r)[m[2] as string] : undefined;
+    if (m && r.level !== m[1]) {
+      // A level above reads the record there (1.10): how a key held at both names the value above it.
+      for (let up = r.of ? this.records.get(r.of) : undefined; up; up = up.of ? this.records.get(up.of) : undefined) if (up.level === m[1]) return this.effective(up)[m[2] as string];
+      return undefined;
+    }
+    if (m) return this.effective(r)[m[2] as string];
     return this.effective(r)[address];
   }
 
@@ -457,6 +464,8 @@ export class Exchange {
       const empty = v === undefined || (isObj(v) && "$empty" in v);
       if (l.required && empty) missing.push(l.facet);
       if (!empty && l.values && typeof v === "string" && !l.values.includes(v)) unfit.push(l.facet);
+      // 5.3.1 (revision 60): a choice that takes its options from another key answers only with what that key holds.
+      if (!empty && l.optionsFrom && typeof v === "string" && !(offered(l.optionsFrom, this.effective(r)) ?? []).includes(v)) unfit.push(l.facet);
       if (!empty && l.length !== undefined && typeof v === "string" && [...v].length > l.length) unfit.push(l.facet);
     }
     if (missing.length || unfit.length) return { ...head, stopped: "needs", ...(missing.length ? { missing } : {}), ...(unfit.length ? { unfit } : {}) };

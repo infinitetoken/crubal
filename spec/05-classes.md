@@ -91,6 +91,15 @@ Outside its condition the facet is **unasked** (5.5), not "does not apply": noth
 flagged, and a value already there is kept. Use a gate (chapter 6.5) when the facet must be `-`. Conditions on
 class lines MUST NOT read the facet they ask for, and the layering check (chapter 6.8) covers them.
 
+**From another key (revision 60).** A choice line MAY end `from <key>` (`unit::resaleMode from resaleModes`):
+the values a record may answer with are the values it reads under that key, a folded key being read from
+above (1.7). So the record above seeds the list and the lower record narrows it. The named key MUST be a
+choice facet whose list holds every value of the line's; a publish refuses it otherwise. A form offers only
+those values; a run stops at its needs on any other (7.4); checked, a value outside them is a
+contradiction citing the line. When the named key holds nothing the line is unasked (5.5). A value held
+when the list later drops it stays: it is a contradiction at the next check, for review, and nothing is
+removed.
+
 ### 5.3.3 Placement
 
 Placement says where and when a facet is collected. It never changes a value.
@@ -100,6 +109,8 @@ Placement says where and when a facet is collected. It never changes a value.
 | order | the order of the lines | the order forms and pages show the facets in |
 | section | a `section: Name` line | the lines after it, until the next section, are shown under that heading |
 | level | `unit::` before the key | the facet **varies** at that level for records wearing this class: it is collected there and stored there (chapter 1.7) |
+| over | `unit::weight over` | revision 59: the facet is stored above and a record at that level MAY hold one of its own, read in its place (chapter 1.7); a form there gives the answer in force, the value above as `baseline`, and `own` |
+| both | `unit::qty both` | revision 59: the value above and the record's own are separate facts; a record at that level reads nothing through (chapter 1.7); a form there gives the record's answer and the value above as `above`, to show and never to post |
 | frame | `frame: front, back, spine` on an image facet's line | the photo slots the facet fills, in order, one image each (revision 19: one or several); an image value names the slot it fills as `frame` beside its `$image`, and a slot no value names is a gap; images naming no slot fill the slots left, in order |
 
 The level prefix names a level of the wearer's kind. It declares a vary step in addition to the kind's own
@@ -107,6 +118,10 @@ The level prefix names a level of the wearer's kind. It declares a vary step in 
 definition and needs no wearer to be in force: its level lines declare where their facets vary for the
 kinds it is `for` whether or not any record wears it yet, so a package may declare the class before the
 first record does.
+
+`over` and `both` are written after the key on a level line and say nothing without the prefix. A line is
+one or the other. A class that places a key `over` or `both` at a level places it above as well: the facet
+is asked of the record above as of any folded key.
 
 ## 5.4 Composition with `uses`
 
@@ -235,7 +250,7 @@ Catalogs and other views select records by the classes they wear (chapter 12).
 ```
 
 Each class line is an object with `facet` and the settings it narrows or places, by their chapter 4.6 names,
-plus `level` and `frame`. A `section` line is an object with only `section`. Narrowed `values` are plain
+plus `level`, `held` (`over` or `both`), `optionsFrom` and `frame`. A `section` line is an object with only `section`. Narrowed `values` are plain
 strings: a class carries no aliases.
 
 ## 5.10 Well-formed classes

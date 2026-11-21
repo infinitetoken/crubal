@@ -284,6 +284,10 @@ function applyEnvelope(state: State, entry: Entry, w: JsonObject) {
       if (typeof s.into === "string") st.into = s.into;
       r.status = st;
     } else delete r.status;
+  } else if (member === "finished") {
+    const v = isObj(w.value) ? (w.value as unknown as Record["finished"]) : {};
+    if (v && Object.keys(v).length) r.finished = v;
+    else delete r.finished;
   } else if (member === "applied") {
     const v = isObj(w.value) ? w.value : {};
     r.applied = { ...(r.applied ?? {}), ...Object.fromEntries(Object.entries(v).map(([k, n]) => [k, Number(n)])) };
@@ -404,6 +408,7 @@ export function diffWrites(before: State, after: Draft): JsonObject[] {
       if (!sameJson((was.carriers ?? {}) as unknown as Json, (now.carriers ?? {}) as unknown as Json)) writes.push({ record: id, envelope: "carriers", value: (now.carriers ?? {}) as unknown as JsonObject });
     }
     if (!sameJson((was?.status ?? {}) as unknown as Json, (now.status ?? {}) as unknown as Json)) writes.push({ record: id, envelope: "status", value: (now.status ?? { state: "active" }) as unknown as JsonObject });
+    if (!sameJson((was?.finished ?? {}) as unknown as Json, (now.finished ?? {}) as unknown as Json)) writes.push({ record: id, envelope: "finished", value: (now.finished ?? {}) as unknown as JsonObject });
     if (!sameJson(was?.applied ?? {}, now.applied ?? {})) writes.push({ record: id, envelope: "applied", value: now.applied ?? {} });
     const heldWas = was?.held ?? {};
     const heldNow = now.held ?? {};

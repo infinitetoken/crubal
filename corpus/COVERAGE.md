@@ -21,6 +21,9 @@ a new MUST or a new case updates this file.
 | 1.6 | an empty list is never written | reader/003-lists (print), reader-errors/e02-empty-list-item |
 | 1.6 | an identity child is a link | dictionary-errors/d03-identity-not-link |
 | 1.6 | a minted row key is never reused | store/008-row-matching, reader-errors/e06-duplicate-row |
+| 1.7, 5.3.3 | a key held over: the answer in force, the baseline and `own` on a form; detaching keeps what was read | forms/006-held-over, store/026-detach-held-over |
+| 5.3.1 | options from another key: only what the record above selected is offered; none selected, unasked | forms/008-options-from |
+| 1.7, 1.10, 5.3.3 | a key held at both: nothing read through, the value above beside the answer, on a record and a mirrored part | forms/007-held-both |
 | 1.6, 1.7 | units mirror parts: the rows above under the unit's own, only the owned keys asked | forms/005-mirrored-parts, rules/012-parts-at-unit |
 | 1.6, 1.10 | a shared part is read through its link: `works[*].genres` in a slot, a filter, a condition | views/021-shared-part-read-through, views/022-rows-by-child |
 | 1.10 | a compound's rows are read by child with the wildcard, alone and through a link | views/022-rows-by-child |

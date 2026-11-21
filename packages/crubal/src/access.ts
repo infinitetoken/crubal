@@ -525,7 +525,7 @@ export function checkPermissions(perms: Permissions, dict: Dictionary, contracts
         const known =
           dict.facets.has(key) || dict.classes.has(t) || dict.levels.has(t) || contracts.has(t) || views.has(t) || perms.menu.has(t) || perms.presets.has(t) ||
           // `flows` (revision 23): the place's workflows as a whole, the designer's gate (`edit flows`).
-          ["arrivals", "vocabulary", "migrations", "gated", "unit", "product", "group", "flows"].includes(t);
+          ["arrivals", "vocabulary", "migrations", "gated", "flows"].includes(t);
         if (!known && verb !== "grant") throw new CrubalError(`${item.name}: ${verb} names ${t}, which isn't a facet, class, view, contract or queue`, item.line);
         if (verb === "grant" && t === "surface") continue; // revision 43: the lines over the surface (14.14)
         if (verb === "grant" && !perms.menu.has(t) && !perms.presets.has(t)) throw new CrubalError(`${item.name}: grant names ${t}, which isn't a menu item or preset`, item.line);

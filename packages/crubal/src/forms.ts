@@ -4,12 +4,14 @@
 // 14.7). A held arrival's candidates ride along so the person decides on the spot (9.2a). Nothing here
 // writes: submitting is the form's run.
 
+import { isFinished } from "./finished.ts";
+import { offered } from "./dictionary.ts";
 import type { Access } from "./access.ts";
 import type { Arrival } from "./arrival.ts";
 import { evaluate, parseCondition } from "./conditions.ts";
 import { type ClassLine, type Dictionary, type Facet, type PartSlot } from "./defs.ts";
 import { resolve } from "./dictionary.ts";
-import { effective, effectiveParts, ownedPartKeys } from "./lifecycle.ts";
+import { bothKeys, effective, effectiveParts, heldOverKeys, ownedPartKeys } from "./lifecycle.ts";
 import type { Json, JsonObject, Record } from "./model.ts";
 import type { RecordSet } from "./records.ts";
 import type { Contract } from "./store.ts";
@@ -34,7 +36,7 @@ export type FormOptions = {
 type Extra = Record & { alternatives?: { [a: string]: Json[] }; suggestions?: { [a: string]: Json[] }; held?: { [a: string]: JsonObject } };
 
 /** A value's states (6.3.2), as the rules engine reads them. */
-function statesOf(r: Extra | undefined, f: Facet | undefined, key: string): string[] {
+function statesOf(r: Extra | undefined, f: Facet | undefined, key: string, dict?: Dictionary): string[] {
   if (!r) return [];
   const s: string[] = [];
   if (r.alternatives?.[key]?.length) s.push("conflicted");
@@ -43,17 +45,22 @@ function statesOf(r: Extra | undefined, f: Facet | undefined, key: string): stri
   const v = r.values[key];
   if (f?.type === "choice" && typeof v === "string" && !(f.values ?? []).some((x) => x.value === v)) s.push("new");
   if (r.sources?.[key]?.adopted) s.push("adopted");
+  if (dict && r.finished?.[key] && isFinished(r, key, dict)) s.push("finished");
   return s;
 }
 
 /** One field: the facet's settings narrowed by the line, and the record's answer. */
-function field(line: { facet: string; required?: boolean; values?: string[]; length?: number; pick?: string; range?: { min: string; max: string }; precision?: string; level?: string; when?: string; frame?: string }, dict: Dictionary, r: Extra | undefined, vals: JsonObject, o: FormOptions, recordId: string | undefined): JsonObject {
+function field(line: { facet: string; required?: boolean; values?: string[]; length?: number; pick?: string; range?: { min: string; max: string }; precision?: string; level?: string; when?: string; optionsFrom?: string; frame?: string }, dict: Dictionary, r: Extra | undefined, vals: JsonObject, o: FormOptions, recordId: string | undefined): JsonObject {
   const f = dict.facets.get(line.facet);
   const key = line.level ? `${line.level}::${line.facet}` : line.facet;
   const out: JsonObject = { key, label: f?.label ?? label(line.facet), type: f?.type ?? "raw" };
   if (f?.ask) out.ask = f.ask;
   if (line.required || f?.required) out.required = true;
-  const allowed = line.values ?? f?.values?.map((v) => v.value);
+  // 5.3.1 (revision 60): options from another key are the values the record reads there; none, and the line is unasked.
+  const offers = line.optionsFrom ? offered(line.optionsFrom, vals) : undefined;
+  if (offers === null) out.asked = false;
+  const allowed = (line.values ?? f?.values?.map((v) => v.value))?.filter((v) => offers === undefined || (offers ?? []).includes(v));
+  if (line.optionsFrom) out.optionsFrom = line.optionsFrom;
   if (f?.type === "choice" && allowed) {
     out.values = allowed.map((v): JsonObject => {
       const cv = f.values?.find((x) => x.value === v);
@@ -89,8 +96,25 @@ function field(line: { facet: string; required?: boolean; values?: string[]; len
   if (mine) {
     const current = vals[line.facet];
     if (current !== undefined) out.current = current;
-    const st = statesOf(r, f, line.facet);
+    const st = statesOf(r, f, line.facet, dict);
     if (st.length) out.state = st;
+    // A key held over (1.7, revision 59): the answer in force, the value above it stands over, and whether
+    // the record holds one of its own. Clearing its own returns it to the baseline.
+    if (r?.of && o.records && heldOverKeys(dict, o.records, r).has(line.facet)) {
+      const up = o.records.get(r.of);
+      const baseline = up ? effective(o.records, up)[line.facet] : undefined;
+      if (baseline !== undefined) out.baseline = baseline;
+      out.own = r.values[line.facet] !== undefined;
+    }
+    // A key held at both (1.7): the record's own answer, and the value above beside it, to show and never
+    // to post. Nothing is read through.
+    if (r?.of && o.records) {
+      const up = o.records.get(r.of);
+      if (up && bothKeys(dict, [...(up.wears ?? []), ...(r.wears ?? [])], r.level).has(line.facet)) {
+        const above = effective(o.records, up, dict)[line.facet];
+        if (above !== undefined) out.above = above;
+      }
+    }
   }
   let editable = mine;
   if (editable && o.access && o.caller && recordId) editable = o.access.may(o.caller, "edit", line.facet, recordId);
@@ -105,7 +129,7 @@ function field(line: { facet: string; required?: boolean; values?: string[]; len
 /** The form a contract makes for a record and a caller. */
 export function formOf(c: Contract, record: Record | undefined, dict: Dictionary, o: FormOptions = {}): JsonObject {
   const r = record as Extra | undefined;
-  const vals: JsonObject = r ? (o.records ? effective(o.records, r) : { ...r.values }) : {};
+  const vals: JsonObject = r ? (o.records ? effective(o.records, r, dict) : { ...r.values }) : {};
   const out: JsonObject = { contract: c.name };
   if (record) out.record = record.id;
   if (c.parts.label) out.label = c.parts.label;
@@ -125,7 +149,10 @@ export function formOf(c: Contract, record: Record | undefined, dict: Dictionary
   // Parts (5.6): rows per slot of the record's worn classes, the slot's class lines as fields. A record below
   // the chain's top mirrors the parts above (1.6): it is asked only the lines its level owns on each part; the
   // rest show as read through and take no edit.
-  const mirrored = r && o.records ? effectiveParts(o.records, r) : (r?.parts ?? []).filter(isObj);
+  const mirrored = r && o.records ? effectiveParts(o.records, r, dict) : (r?.parts ?? []).filter(isObj);
+  const upOf = r?.of && o.records ? o.records.get(r.of) : undefined;
+  // The parts above as their own record reads them, for the value a key held at both stands beside.
+  const partsAbove = new Map((upOf ? effectiveParts(o.records as RecordSet, upOf, dict) : []).map((p) => [String(p.$row), p]));
   if (r && mirrored.length) {
     const up = r.of && o.records ? o.records.get(r.of) : undefined;
     const worn = [...new Set([...(up?.wears ?? []), ...(r.wears ?? [])])];
@@ -140,13 +167,21 @@ export function formOf(c: Contract, record: Record | undefined, dict: Dictionary
         slot: slot.slot,
         wears: slot.wears,
         ...(slot.fungible ? { fungible: true } : {}),
+        // 1.6 (revision 61): whether the record that holds the slot's rows has said they are all there.
+        ...(isFinished(upOf ?? r, `parts.${slot.slot}`, dict) ? { finished: true } : {}),
         rows: rows.map((p): JsonObject => {
           const pv = (isObj(p.values) ? p.values : {}) as JsonObject;
           const fields = lines
-            .filter((ln) => !ln.levels.length || ln.levels.includes(r.level))
+            // A line held over or at both is asked above as well as at its level (5.3.3).
+            .filter((ln) => !ln.levels.length || ln.levels.includes(r.level) || ln.from.some((x) => x.line.held))
             .map((ln) => {
-              const f = field({ facet: ln.facet, ...(ln.required ? { required: true } : {}), ...(ln.values ? { values: ln.values } : {}), ...(ln.length !== undefined ? { length: ln.length } : {}), ...(ln.pick ? { pick: ln.pick } : {}), ...(ln.range ? { range: ln.range } : {}), ...(ln.when ? { when: ln.when } : {}) }, dict, { ...r, values: pv, alternatives: undefined, suggestions: undefined, held: undefined } as Extra, pv, o, record?.id);
+              const f = field({ facet: ln.facet, ...(ln.optionsFrom ? { optionsFrom: ln.optionsFrom } : {}), ...(ln.required ? { required: true } : {}), ...(ln.values ? { values: ln.values } : {}), ...(ln.length !== undefined ? { length: ln.length } : {}), ...(ln.pick ? { pick: ln.pick } : {}), ...(ln.range ? { range: ln.range } : {}), ...(ln.when ? { when: ln.when } : {}) }, dict, { ...r, values: pv, alternatives: undefined, suggestions: undefined, held: undefined } as Extra, pv, o, record?.id);
               if (owned && !owned.has(ln.facet)) f.editable = false;
+              if (owned && bothKeys(dict, [slot.wears], r.level).has(ln.facet)) {
+                const pa = partsAbove.get(String(p.$row))?.values;
+                const above = isObj(pa) ? pa[ln.facet] : undefined;
+                if (above !== undefined) f.above = above;
+              }
               return f;
             });
           if (slot.fungible && !owned) fields.push({ key: "crubal:count", label: "Count", type: "number", editable: true, ...(pv["crubal:count"] !== undefined ? { current: pv["crubal:count"] } : {}) });

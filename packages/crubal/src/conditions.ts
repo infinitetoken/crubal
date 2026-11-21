@@ -11,7 +11,7 @@ export type Truth = true | false | "undetermined";
 /** What a condition can know beyond values: each address's states (6.3.2). */
 export type StateOf = (path: string) => Set<string>;
 
-export const STATES = new Set(["confirmed", "contradicted", "unobserved", "conflicted", "new", "held", "adopted", "suggested"]);
+export const STATES = new Set(["confirmed", "contradicted", "unobserved", "conflicted", "new", "held", "adopted", "suggested", "finished"]);
 
 export type Expr =
   | { op: "and" | "or"; a: Expr; b: Expr }

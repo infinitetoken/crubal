@@ -17,6 +17,17 @@ import { readTerms, robotsTxt, termsHeaders, termsJson } from "./terms.ts";
  * the host in process. `url` is the path and query as node gives it; the origin a signature covers comes
  * from the `host` and `x-forwarded-proto` headers; the body is already read, once, so a digest can cover it.
  */
+/**
+ * The level a new record arrives at: the one named, else the level the contract is `for`, else the only level
+ * the dictionary has. The host names no level of its own: levels are a package's.
+ */
+function levelFor(given: string | undefined, target: string | undefined, dict: { levels: Map<string, string> }): string {
+  if (given) return given;
+  if (target && dict.levels.has(target)) return target;
+  if (dict.levels.size === 1) return [...dict.levels.keys()][0] as string;
+  throw new HttpError(400, "level");
+}
+
 export type HostRequest = { method: string; url: string; headers: { [h: string]: string | string[] | undefined }; body: string };
 /** What a request's log line and CORS need, set as the request is understood. */
 export type Seen = { owner?: string; caller?: string; route?: string };
@@ -307,7 +318,7 @@ async function respond(host: Host, req: Req, res: Res, seen: Seen): Promise<void
       // A form run is the person's answers landing as the contract says; a send acts.
       if (c.kind === "form") {
         if (!record) {
-          const level = typeof b.level === "string" ? b.level : "product";
+          const level = levelFor(typeof b.level === "string" ? b.level : undefined, c.parts.for, border.o.dict);
           return json(res, 200, await border.arrive(name, JSON.stringify(b.answers ?? {}), level, actor, undefined, at));
         }
         return json(res, 200, await border.receive(name, record, JSON.stringify(b.answers ?? {}), actor, at));
@@ -325,7 +336,7 @@ async function respond(host: Host, req: Req, res: Res, seen: Seen): Promise<void
       const actor = acted?.actor ?? callerId;
       if (acted) border.acting = acted.acting;
       if (record) return json(res, 200, await border.receive(name, record, payload, actor, at, run));
-      return json(res, 200, await border.arrive(name, payload, q("level") ?? "product", actor, q("of"), at, q("within")));
+      return json(res, 200, await border.arrive(name, payload, levelFor(q("level") ?? undefined, border.contracts.get(name)?.parts.for, border.o.dict), actor, q("of"), at, q("within")));
     }
     if (what === "records" && name && method === "GET") {
       if (!callerId) throw new HttpError(401, "sign in");

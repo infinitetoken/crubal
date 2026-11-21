@@ -317,6 +317,9 @@ export function restamp(records: Record[], recipe: Recipe, dict: Dictionary, sta
             (p) => Array.isArray(p.wears) && p.wears.includes(slot.wears),
           );
           const made: Json[] = [];
+          /** The parts bound to a row, as their values stood, and the parts a row fills, by key. */
+          const bound: string[] = [];
+          const filled = new Map<string, JsonObject>();
           for (const row of rows) {
             if (s.when && evaluate(parseCondition(s.when, s.line), row) !== true) continue;
             const pv: JsonObject = {};
@@ -347,15 +350,37 @@ export function restamp(records: Record[], recipe: Recipe, dict: Dictionary, sta
             }
             const same = unmatched.findIndex((p) => isObj(p.values) && serialize(p.values as Json) === serialize(pv));
             if (same >= 0) {
+              bound.push(serialize((unmatched[same] as JsonObject).values as Json));
               unmatched.splice(same, 1);
+              continue;
+            }
+            // A part an earlier, shorter step made of this row (it holds some of what the row maps, and nothing
+            // the row says otherwise) is the row's part: it is filled with what it lacks, never made again
+            // (2026-11-20: a step that gains a `child -> facet` line made every part twice).
+            const partial = unmatched.findIndex((p) => {
+              const held = isObj(p.values) ? Object.entries(p.values) : [];
+              return held.length > 0 && held.every(([k, x]) => pv[k] !== undefined && serialize(x) === serialize(pv[k] as Json));
+            });
+            if (partial >= 0) {
+              const part = unmatched[partial] as JsonObject;
+              bound.push(serialize(part.values as Json));
+              unmatched.splice(partial, 1);
+              filled.set(String(part.$row), pv);
               continue;
             }
             const key = next();
             keys.add(key);
             made.push({ $row: key, wears: [slot.wears], values: pv });
           }
+          // A part the slot holds that no row accounts for, under a key this step mints and with the very values
+          // of a part a row did bind, is that part made a second time by a run before the step learned to bind:
+          // it goes. A part a person made, or one that says anything of its own, is never touched.
+          const minted = new RegExp(`^${s.to}\\d+$`);
+          const twice = new Set(unmatched.filter((p) => minted.test(String(p.$row)) && bound.includes(serialize((isObj(p.values) ? p.values : {}) as Json))).map((p) => String(p.$row)));
+          if (filled.size || twice.size)
+            parts = (parts ?? []).filter((p) => !(isObj(p) && twice.has(String(p.$row)))).map((p) => (isObj(p) && filled.has(String(p.$row)) ? { ...p, values: filled.get(String(p.$row)) as JsonObject } : p));
           if (made.length) parts = [...(parts ?? []), ...made];
-          if (stats) (stats[si] as StepStats).changed += made.length;
+          if (stats) (stats[si] as StepStats).changed += made.length + filled.size + twice.size;
           break;
         }
         case "fill": {

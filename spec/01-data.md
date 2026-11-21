@@ -222,9 +222,19 @@ rows matched by `key`) for facts that are true of this record and that no class 
 edition number 4522, graded. Notables are data like any other, with sources. A notable key that recurs across
 enough records is proposed as a real facet through review (chapter 9.5); a one-off stays a notable.
 
+**Finished (revision 61).** Having items says the work started, never that it ended. A record MAY say a
+many-valued key, or a part slot (as `parts.<slot>`), is **finished**: every item there is held. It is said
+by a person who may edit the record, with a source; an intake never says it. The record holds it in a
+`finished` member beside its values, by address, with what the list was when it was said. The list is
+finished only while it is still that list: adding or removing an item unsays it, and changing an item's own
+values does not. It is said where the list is stored, so a product's part slot finished says the packing
+list is all there and says nothing of any unit's answers. A rule MAY read it as a value state (6.3.2,
+`languages is finished`); a form gives it among a field's states and as `finished` on a part slot.
+
 ## 1.7 Values down the levels
 
-Every key on an attached record is one of two kinds:
+Every key on an attached record is one of two kinds, and a class line MAY place a key two further ways
+(revision 59):
 
 - **Folded keys.** Facets that don't vary at the record's level (a product's title, format, runtime) are
   facts about the record above. The lower record stores none of them; it reads the upper record's value, so a
@@ -234,6 +244,20 @@ Every key on an attached record is one of two kinds:
   wears (chapter 5.3.3) say which keys its lower records have. The lower record **owns the keys and their
   values**. A change above never changes an owned value, and a change to which keys are projected reaches a
   lower record only through an instruction (chapter 10.7).
+
+- **Keys held over.** A facet placed `over` at a level (5.3.3) is stored above, as a folded key is, and a
+  record at that level MAY hold a value of its own. Read at that level and below, the key is the record's own
+  value when it holds one and the value above when it does not. Writing it at the lower level writes the lower
+  record and never the one above. Removing the lower value returns the key to the value above; a lower value
+  equal to the one above is kept, as an answer, and no longer follows it. Only absence reads through:
+  `unknown` and `does not apply` (1.5) held below stand over the value above.
+- **Keys held at both.** A facet placed `both` at a level is stored above and varies at that level, and the
+  two values are separate facts: what the record above says, and what the lower record says of itself. A
+  record at that level reads its own value and reads nothing through: with none of its own, the key is absent
+  there, and nothing is assumed from the record above. The value above is read at its level's address
+  (`product::qty`, 1.10), so a rule MAY set the two side by side (`qty same as product::qty`).
+
+Both hold for a part a record mirrors (1.6) as for the record: the part's class places the key.
 
 A record that wears a class of its own (5.5) owns that class's lines **at its own level**: its `level::`
 lines, and, when the record stands alone, its unprefixed lines too. Lines above its level stay folded,
@@ -255,13 +279,15 @@ own level. Rules and templates read its own values the same way they read throug
 | holds no value | | the lower value moves up, keeping its source |
 | holds a different value | | a conflict (chapter 9.3): the trust order picks, the other is kept as an alternative; a cluster of such differences across instances is the version-split signal (9.7.3) |
 
-Owned keys stay where they are. Attaching needs `edit` on the lower record; a value that would move up to a
+Owned keys stay where they are, and so does the lower value of a key held over or at both: under `both`
+neither value is a copy of the other, and under `over` the lower record has answered. Attaching needs `edit` on the lower record; a value that would move up to a
 record the caller may not edit lands there as a suggestion instead, and the lower record keeps its own value
 until it is accepted. Attaching is refused, and goes to review, when the two records' worn classes have an
 empty meet (chapter 5.5).
 
 **Detaching** copies every folded value onto the lower record, with its source, so the record keeps working as
-it was. Attaching and detaching are envelope writes (1.1), logged.
+it was. A key held over is copied where the lower record holds none of its own; a key held at both is never
+copied. Attaching and detaching are envelope writes (1.1), logged.
 
 ## 1.8 Qualifiers
 
@@ -309,6 +335,7 @@ selector  = rowkey / quoted-item
 | `genres["Holiday"]` | the item `Holiday` of the list `genres` |
 | `works[*].genres` | `genres` on every record the link facet `works` points at: a shared part, read through (1.6); `work.title` reads a single link's target |
 | `unit::condition` | `condition` at the `unit` level, written from above (rules and classes only) |
+| `product::qty` | `qty` on the record at the `product` level above the one read (revision 59): how a key held at both (1.7) names the value above |
 
 A list item of a plain list is addressed by its value: the item's text form (chapter 2), with its
 qualifiers but not its sources, written as a quoted text: `genres["Holiday"]`, `rating["15 [region: UK]"]`. A selector that matches nothing addresses nothing; it is

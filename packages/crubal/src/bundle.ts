@@ -74,6 +74,8 @@ export function classLineJson(l: ClassLine): JsonObject {
   if (l.range) o.range = { min: l.range.min, max: l.range.max };
   if (l.precision) o.precision = l.precision;
   if (l.level) o.level = l.level;
+  if (l.held) o.held = l.held;
+  if (l.optionsFrom) o.optionsFrom = l.optionsFrom;
   if (l.when) o.when = l.when;
   if (l.frame) o.frame = l.frame;
   return o;
@@ -475,6 +477,8 @@ export function lineText(l: JsonObject, type?: string): string {
   if (l.pick !== undefined) s += l.pick === "any" ? "*" : `*${l.pick}`;
   if (isObj(l.range)) s += ` ${l.range.min}..${l.range.max}`;
   if (typeof l.precision === "string") s += `@${type === "time" ? (l.precision === "second" ? "hms" : "hm") : (PRECISION_CODE[l.precision] ?? l.precision)}`;
+  if (typeof l.optionsFrom === "string") s += ` from ${l.optionsFrom}`;
+  if (typeof l.held === "string") s += ` ${l.held}`;
   if (typeof l.frame === "string") s += ` frame: ${l.frame}`;
   if (typeof l.when === "string") s += ` when ${l.when}`;
   return s;

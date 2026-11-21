@@ -3,6 +3,8 @@
 // one spelling); and writes run through the rules in order (6.2, 6.4, 6.7, 6.9): refused, held, filled,
 // derived, flagged, incomplete, complete and completeness.
 
+import { isFinished } from "./finished.ts";
+import { aboveBoth, partThrough, readThrough } from "./lifecycle.ts";
 import { type Expr, evaluate, parseCondition, reads, type StateOf } from "./conditions.ts";
 import { aggregateOf, levelStep, rowStep } from "./address.ts";
 import { type Dictionary, type Facet, unquote } from "./defs.ts";
@@ -227,13 +229,16 @@ export class Engine {
   /** The values a record reads: its own over everything above it (1.7). */
   effective(rec: Record): JsonObject {
     const up = rec.of ? this.store.get(rec.of)?.rec : undefined;
-    return { ...(up ? this.effective(up) : {}), ...rec.values };
+    if (!up) return { ...rec.values };
+    // A key held at both (1.7) is not read through; the value above is read at its level's address.
+    const above = this.effective(up);
+    return { ...readThrough(this.dict, up, rec, above), ...aboveBoth(this.dict, up, rec, above), ...rec.values };
   }
 
   /** The parts a record reads (1.6): the chain's top's rows, each under the record's own row of the same key. */
   partsOf(rec: Record): JsonObject[] {
     const up = rec.of ? (this.store.get(rec.of)?.rec ?? this.records?.().get(rec.of)) : undefined;
-    const above = up ? this.partsOf(up) : [];
+    const above = up ? this.partsOf(up).map((p) => partThrough(this.dict, p, rec.level)) : [];
     const own = (rec.parts ?? []).filter((p): p is JsonObject => isObj(p));
     if (!above.length) return own;
     const byRow = new Map(above.map((p) => [String(p.$row), p]));
@@ -321,6 +326,7 @@ export class Engine {
       const v = rec.values[path];
       if (f?.type === "choice" && typeof v === "string" && !(f.values ?? []).some((x) => x.value === v)) s.add("new");
       if (rec.sources?.[path]?.adopted) s.add("adopted");
+      if (rec.finished?.[path] && isFinished(rec, path, this.dict)) s.add("finished");
       return s;
     };
   }
