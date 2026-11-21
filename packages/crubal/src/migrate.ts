@@ -190,8 +190,10 @@ export function checkRecipe(r: Recipe, dict: Dictionary): void {
     }
     if (s.verb === "rows") {
       const c = dict.facets.get(s.to);
-      if (!c || c.type !== "compound") throw new CrubalError(`${s.to} is not a compound of ${r.to}`, s.line);
-      for (const k of [s.as, ...s.set.map(([k]) => k)]) if (!c.children?.has(k)) throw new CrubalError(`${k} is not a child of ${s.to}`, s.line);
+      // A compound of an extended package (11.4) is not in this package's own definitions: as with a `parts`
+      // step's slot, it is left to the install, which reads the recipe under the merged dictionary.
+      if (c && c.type !== "compound") throw new CrubalError(`${s.to} is not a compound of ${r.to}`, s.line);
+      if (c) for (const k of [s.as, ...s.set.map(([k]) => k)]) if (!c.children?.has(k)) throw new CrubalError(`${k} is not a child of ${s.to}`, s.line);
     }
     if (s.verb === "fill") {
       if (!f) throw new CrubalError(`${s.facet} is not a facet of ${r.to}`, s.line);

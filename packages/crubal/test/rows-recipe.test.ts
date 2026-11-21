@@ -63,6 +63,8 @@ test("each item becomes a row, after the rows held; the facet's value goes; agai
 test("a step must name a compound and its children", () => {
   assert.throws(() => publish(head + recipe.replace("-> shots", "-> title"), { date: "2026-11-21" }), /title is not a compound/);
   assert.throws(() => publish(head + recipe.replace("shows: cover", "colour: red"), { date: "2026-11-21" }), /colour is not a child of shots/);
+  // A compound of an extended package is not in this package's own definitions: left to the install.
+  publish(head + recipe.replace("-> shots", "-> theirShots"), { date: "2026-11-21" });
 });
 
 test("a tidy-up of words no definition lists rides a version where nothing broke; of a choice's values it does not", () => {
