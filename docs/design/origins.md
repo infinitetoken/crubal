@@ -1,4 +1,4 @@
-# Origins: both, over, options from above, finished (proposal, 2026-11-20)
+# Origins: both, over, options from above, finished (2026-11-20; engine 0.4.2, revisions 59 to 62)
 
 **Status:** ruled 2026-11-20 (the six questions at the end, all as proposed; on `both`: "don't assume based on the parent template"). `over` and `both` are built on this branch as revision 59 (spec 1.7, 1.10, 5.3.3; tests `held-over`, `held-both`; corpus forms/006, forms/007, store/026). `from` is built as revision 60 (5.3.1; test `options-from`; corpus forms/008) and finished as revision 61 (1.6; test `finished`), held as a mark of what the list was, so no write is needed to reopen it. Not built: the refusal of an undeclared lower value (question 5); a text form for finished; a contract or form press that says it (the functions `sayFinished` and `unsayFinished` are there, nothing calls them yet); a corpus case for finished. Written for the operator to correct. The need comes from
 CashierFu's brief 128 (`cashierfu/docs/cashierfu/128-engine-audit.md`): Media Encyclopedia 1.0's facet design
