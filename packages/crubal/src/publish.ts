@@ -2,6 +2,7 @@
 // that didn't change keeps its version; one that did takes the date. A breaking change needs a recipe step
 // that covers it, from the previous version to this one; a recipe is refused when nothing broke.
 
+import { facetOf, leafOf } from "./address.ts";
 import { nextVersion } from "./versions.ts";
 import { checkRecipe } from "./migrate.ts";
 import { bundleHash, bundleOf, type Parsed, parsePackage, signBundle } from "./bundle.ts";
@@ -224,7 +225,16 @@ export function publish(source: string | Parsed, o: PublishOptions): { bundle: J
   }
   // A recipe of fills, recomputes and parts steps alone is a backfill (10.3): it may ride a version where
   // nothing broke (a class gaining a slot is additive, and the step that makes its parts rides with it, 2026-10-27).
-  const backfill = (r: JsonObject) => ((r.steps as JsonObject[]) ?? []).every((s) => isObj(s.fill) || s.recompute === true || isObj(s.parts));
+  // Revision 63: so is a step that only tidies words no definition lists (a merge or a rename of a text facet's
+  // values, a compound's text child among them): no reader held those words as a list, so nothing needs to break.
+  const words = (s: JsonObject) => {
+    if (!isObj(s.merge) && !isObj(s.rename)) return false;
+    const f = parsed.dict.facets.get(leafOf(String(s.facet), parsed.dict)) ?? facetOf(String(s.facet), parsed.dict);
+    // A facet of an extended package (11.4) is not in this package's own definitions: as with a `parts` step,
+    // it is left to the install, which reads the recipe under the merged dictionary.
+    return f === undefined || f.type === "text";
+  };
+  const backfill = (r: JsonObject) => ((r.steps as JsonObject[]) ?? []).every((s) => isObj(s.fill) || s.recompute === true || isObj(s.parts) || words(s));
   if (!breaking.length && covering.some((r) => !backfill(r))) throw new CrubalError(`a recipe from ${from} is present but nothing broke`);
   for (const r of covering) (r.migration as JsonObject).to = to;
   if (o.previous) b.previous = String(o.previous.version);
