@@ -509,3 +509,123 @@ test("a package leaves (11.4, revision 30): refused while another extends it or 
   assert.ok((await store.installed()).some((i) => i.package === "lab.example/tower"), "in force again");
   assert.ok((await store.definitions(true)).dict.classes.has("Tagged"));
 });
+
+// 0.4.5 (found by CashierFu's picture fold, 2026-11-20): a version whose recipe moves a list into a compound's
+// rows, and whose new rule reads the list back out of them. The install derives under the definitions it
+// brings (10.3: produced values are rebuilt by the new rules); before, it derived under the version before, the
+// new rule never ran, and the list stood empty until each record's next write.
+test("an install rebuilds produced values under the rules it brings: a list moved into rows is read back out by the new rule", { skip: !url }, async () => {
+  const store = new PgStore(pool, "pics.example", { allowUnsigned: true });
+  const head = (v: string, old = "") => `package: pics /${v}
+  owner: pics.example
+  label: Pictures
+  crubal: 2
+
+kind: item
+  levels: item
+  base: Item
+
+title$80
+images^*
+${old ? "old^*\n" : ""}facet: shots
+  type: compound
+  pick: any
+  facets:
+    !shot^
+    shows$80
+
+class: Item
+  for: item
+  facets:
+    title
+    images
+    shots
+${old}`;
+  const v1 = publish(head("2026-10-01", "    old\n"), { date: "2026-10-01" }).bundle;
+  const v2 = publish(`${head("2026-10-02")}
+rule: imagesFromShots
+  for: Item
+  then: images is join of shots[*].shot where shows is cover
+  strength: should
+
+migration: pics /2026-10-01 -> pics /2026-10-02
+  facet: old
+    rows: -> shots
+      as: shot
+      shows: cover
+`, { date: "2026-10-02", previous: v1 }).bundle;
+  await store.install(v1, undefined, "2026-10-17T00:00:00Z");
+  const img = (u: string) => ({ $image: u });
+  await store.commit(
+    { person: "pics.example" },
+    (d) => {
+      d.records.set("I-1", { id: "I-1", kind: "item", level: "item", owner: "pics.example", wears: ["Item"], values: { title: "A", old: [img("https://x.test/a.jpg"), img("https://x.test/b.jpg")] }, sources: { "*": { origin: "declared", via: "L-1" } } });
+    },
+    "2026-10-17T00:00:01Z",
+  );
+  await store.install(v2, undefined, "2026-10-17T00:00:02Z");
+  const r = (await store.state()).records.get("I-1");
+  assert.deepEqual(r?.values.shots, [{ shot: img("https://x.test/a.jpg"), shows: "cover" }, { shot: img("https://x.test/b.jpg"), shows: "cover" }]);
+  assert.deepEqual(r?.values.images, [img("https://x.test/a.jpg"), img("https://x.test/b.jpg")], "read back out by the rule the version brought");
+  assert.equal(r?.sources?.images?.origin, "derived");
+});
+
+test("the same over more records than one batch holds: each batch of the restamp reads the list back out", { skip: !url }, async () => {
+  const store = new PgStore(pool, "picsbatch.example", { allowUnsigned: true, restampBatch: 1 });
+  const head = (v: string, old = "") => `package: pics /${v}
+  owner: picsbatch.example
+  label: Pictures
+  crubal: 2
+
+kind: item
+  levels: item
+  base: Item
+
+title$80
+images^*
+${old ? "old^*\n" : ""}facet: shots
+  type: compound
+  pick: any
+  facets:
+    !shot^
+    shows$80
+
+class: Item
+  for: item
+  facets:
+    title
+    images
+    shots
+${old}`;
+  const v1 = publish(head("2026-10-01", "    old\n"), { date: "2026-10-01" }).bundle;
+  const v2 = publish(`${head("2026-10-02")}
+rule: imagesFromShots
+  for: Item
+  then: images is join of shots[*].shot where shows is cover
+  strength: should
+
+migration: pics /2026-10-01 -> pics /2026-10-02
+  facet: old
+    rows: -> shots
+      as: shot
+      shows: cover
+`, { date: "2026-10-02", previous: v1 }).bundle;
+  await store.install(v1, undefined, "2026-10-17T00:00:00Z");
+  const img = (u: string) => ({ $image: u });
+  await store.commit(
+    { person: "picsbatch.example" },
+    (d) => {
+      d.records.set("I-2", { id: "I-2", kind: "item", level: "item", owner: "picsbatch.example", wears: ["Item"], values: { title: "B", old: [img("https://x.test/c.jpg")] }, sources: { "*": { origin: "declared", via: "L-1" } } });
+      d.records.set("I-1", { id: "I-1", kind: "item", level: "item", owner: "picsbatch.example", wears: ["Item"], values: { title: "A", old: [img("https://x.test/a.jpg"), img("https://x.test/b.jpg")] }, sources: { "*": { origin: "declared", via: "L-1" } } });
+    },
+    "2026-10-17T00:00:01Z",
+  );
+  await store.install(v2, undefined, "2026-10-17T00:00:02Z");
+  const rest = await store.continueRestamp("picsbatch.example/pics", "2026-10-02", { at: "2026-10-17T00:00:03Z" });
+  assert.equal(rest.done, true);
+  assert.deepEqual((await store.state()).records.get("I-2")?.values.images, [img("https://x.test/c.jpg")]);
+  const r = (await store.state()).records.get("I-1");
+  assert.deepEqual(r?.values.shots, [{ shot: img("https://x.test/a.jpg"), shows: "cover" }, { shot: img("https://x.test/b.jpg"), shows: "cover" }]);
+  assert.deepEqual(r?.values.images, [img("https://x.test/a.jpg"), img("https://x.test/b.jpg")], "read back out by the rule the version brought");
+  assert.equal(r?.sources?.images?.origin, "derived");
+});
