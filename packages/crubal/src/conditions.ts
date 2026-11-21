@@ -51,6 +51,20 @@ export function parseCondition(text: string, line?: number): Expr {
   if (ands.length > 1) return ands.map((x) => parseCondition(x, line)).reduce((a, b) => ({ op: "and", a, b }));
   if (s.startsWith("not ")) return { op: "not", a: parseCondition(s.slice(4), line) };
   if (s.startsWith("(") && s.endsWith(")")) return parseCondition(s.slice(1, -1), line);
+  // An aggregate with a row filter is one path (6.3): `count of shots[*] where shows is cover over 0`. The
+  // filter holds verbs of its own, so the test's verb is the last comparison in the line.
+  if (/^\w+ of .+ where /.test(s)) {
+    let best = -1;
+    let verb = "";
+    for (const v of [" is not ", " is ", " over ", " under "]) {
+      const at = s.lastIndexOf(v);
+      if (at > best || (at === best && v.length > verb.length)) {
+        best = at;
+        verb = v;
+      }
+    }
+    if (best > 0 && s.slice(0, best).includes(" where ")) return { op: "test", path: s.slice(0, best).trim(), verb: verb.trim(), arg: s.slice(best + verb.length).trim() };
+  }
   for (const v of VERBS) {
     const at = s.indexOf(v);
     if (at > 0) return { op: "test", path: s.slice(0, at).trim(), verb: v.trim(), arg: s.slice(at + v.length).trim() };
@@ -85,7 +99,8 @@ function emptyOf(v: Json | undefined): "absent" | "unknown" | "n/a" | null {
 /** A path's value, including aggregates: `count of languages`, `least of prices`, `most of …`, `sum of …`. */
 function valueAt(values: JsonObject, path: string): Json | undefined {
   const agg = path.match(/^(count|least|most|sum) of (.+)$/);
-  if (!agg) return values[path];
+  // An aggregate the rules answered over the record (rows, parts, lower levels) is handed in under its text.
+  if (!agg || values[path] !== undefined) return values[path];
   const v = values[agg[2] as string];
   const items = v === undefined || emptyOf(v) ? [] : Array.isArray(v) ? v : [v];
   if (agg[1] === "count") return String(items.length);

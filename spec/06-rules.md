@@ -143,6 +143,12 @@ contract: aiTitle
 - A **fill** produces only at `suggest`. At `must` and `should`, a plain value is a check.
 - A **derivation** or **rollup** produces at every strength. The engine writes it, recomputes it whenever
   what it reads changes, and stores it with `origin: derived` and the rule as its `via`.
+- **In a condition (0.4.6).** An aggregate over the record's rows, its parts or the records below is a path
+  in `when` as it is in `then`: `when: count of shots[*] where shows is cover is 0`. The test's verb is the
+  last comparison in the line; a row filter of more than one test stands in parentheses, so the line's own
+  `and` and `or` are not read into it: `count of shots[*] where (shows is cover and not origin has) over 0`.
+- **A join is one list (0.4.6).** A `join` over a many-valued key gathers the items of every value into one
+  list, each value once, in the order met: `join of unit::images` is the pictures of the units below.
 - A rollup over a lower level (`count of unit::cashierfuId`) reads the **active** records below, as views
   do (1.12); merged ones never. A row filter that names `status` reads the archived too: `count of
   unit::cashierfuId where status has` counts a product's units with history included.
