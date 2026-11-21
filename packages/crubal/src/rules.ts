@@ -4,7 +4,7 @@
 // derived, flagged, incomplete, complete and completeness.
 
 import { isFinished } from "./finished.ts";
-import { aboveBoth, partThrough, readThrough } from "./lifecycle.ts";
+import { aboveBoth, partThrough, placedKeys, readThrough, wornBy } from "./lifecycle.ts";
 import { type Expr, evaluate, parseCondition, reads, type StateOf } from "./conditions.ts";
 import { aggregateOf, levelStep, rowStep } from "./address.ts";
 import { type Dictionary, type Facet, unquote } from "./defs.ts";
@@ -313,7 +313,12 @@ export class Engine {
 
   /** Where a produced key may be stored: the top of its chain, or a level where it varies. */
   private storesAt(key: string, rec: Record): boolean {
-    return !rec.of || (this.dict.vary.get(rec.level)?.has(key) ?? false);
+    if (!rec.of || this.dict.vary.get(rec.level)?.has(key)) return true;
+    // A class's `level::` line declares a vary step as the kind's `vary` does (5.3.3): a produced key the classes
+    // above or on the record place at its level is stored there. Before, only the kind's own steps counted, and
+    // a rule for a class-placed key wrote nothing on a lower record (0.4.4).
+    const up = this.store.get(rec.of)?.rec ?? this.records?.().get(rec.of);
+    return placedKeys(this.dict, [...wornBy(this.dict, up), ...wornBy(this.dict, rec)], rec.level).has(key);
   }
 
   private states(rec: Record, held: Set<string>): StateOf {

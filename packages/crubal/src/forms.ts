@@ -11,7 +11,7 @@ import type { Arrival } from "./arrival.ts";
 import { evaluate, parseCondition } from "./conditions.ts";
 import { type ClassLine, type Dictionary, type Facet, type PartSlot } from "./defs.ts";
 import { resolve } from "./dictionary.ts";
-import { bothKeys, effective, effectiveParts, heldOverKeys, ownedPartKeys } from "./lifecycle.ts";
+import { bothKeys, effective, effectiveParts, heldOverKeys, ownedPartKeys, wornBy } from "./lifecycle.ts";
 import type { Json, JsonObject, Record } from "./model.ts";
 import type { RecordSet } from "./records.ts";
 import type { Contract } from "./store.ts";
@@ -110,7 +110,7 @@ function field(line: { facet: string; required?: boolean; values?: string[]; len
     // to post. Nothing is read through.
     if (r?.of && o.records) {
       const up = o.records.get(r.of);
-      if (up && bothKeys(dict, [...(up.wears ?? []), ...(r.wears ?? [])], r.level).has(line.facet)) {
+      if (up && bothKeys(dict, [...wornBy(dict, up), ...wornBy(dict, r)], r.level).has(line.facet)) {
         const above = effective(o.records, up, dict)[line.facet];
         if (above !== undefined) out.above = above;
       }
@@ -155,7 +155,7 @@ export function formOf(c: Contract, record: Record | undefined, dict: Dictionary
   const partsAbove = new Map((upOf ? effectiveParts(o.records as RecordSet, upOf, dict) : []).map((p) => [String(p.$row), p]));
   if (r && mirrored.length) {
     const up = r.of && o.records ? o.records.get(r.of) : undefined;
-    const worn = [...new Set([...(up?.wears ?? []), ...(r.wears ?? [])])];
+    const worn = [...new Set([...wornBy(dict, up), ...wornBy(dict, r)])];
     const slots: PartSlot[] = worn.flatMap((w) => dict.classes.get(w)?.parts ?? []);
     const parts: JsonObject[] = [];
     for (const slot of slots) {
