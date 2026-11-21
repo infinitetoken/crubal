@@ -147,6 +147,10 @@ contract: aiTitle
   in `when` as it is in `then`: `when: count of shots[*] where shows is cover is 0`. The test's verb is the
   last comparison in the line; a row filter of more than one test stands in parentheses, so the line's own
   `and` and `or` are not read into it: `count of shots[*] where (shows is cover and not origin has) over 0`.
+- **Reading below the key it produces (0.4.7).** A rule MAY produce a key from the same key of the records
+  below (`images is join of unit::images`): what it reads is the lower level's address and no key of the
+  record it writes, as `parts[*].condition` is for a part, so the publish check (6.8) sees no circle in it. An
+  aggregate in a condition reads, for that check, what a rollup of it would.
 - **A join is one list (0.4.6).** A `join` over a many-valued key gathers the items of every value into one
   list, each value once, in the order met: `join of unit::images` is the pictures of the units below.
 - A rollup over a lower level (`count of unit::cashierfuId`) reads the **active** records below, as views

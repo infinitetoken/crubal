@@ -108,7 +108,16 @@ export function shortcutRules(dict: Dictionary): Rule[] {
 // ─── Publish checks (6.8) ────────────────────────────────────────────────────
 
 function readsOf(r: Rule): string[] {
-  const keys = r.when ? reads(r.when) : [];
+  // What an aggregate reads: the compound whose rows it reads, or its address.
+  const read = (address: string) => {
+    const rows = address.match(/^(\w+)\[\*\](?:\.(\w+))?$/);
+    return rows && rows[1] !== "parts" ? (rows[1] as string) : address;
+  };
+  // An aggregate in a condition (0.4.6) reads what a rollup of it would.
+  const keys = (r.when ? reads(r.when) : []).map((k) => {
+    const agg = aggregateOf(k);
+    return agg ? read(agg.address) : k;
+  });
   if (r.produces?.kind === "template") {
     for (const m of r.produces.right.matchAll(/\{([^{}]+)\}/g)) {
       for (const alt of (m[1] as string).split("??")) keys.push(alt.trim().replace(/\?$/, ""));
@@ -121,7 +130,11 @@ function readsOf(r: Rule): string[] {
     const rows = address.match(/^(\w+)\[\*\](?:\.(\w+))?$/);
     keys.push(rows && rows[1] !== "parts" ? (rows[1] as string) : address);
   }
-  return keys.map((k) => k.replace(/^\w+::/, ""));
+  // A read of a lower level is a read of its key, so a rule that produces that key below stands before this
+  // one. Not so where the rule reads below the very key it produces above (`images is join of unit::images`,
+  // 0.4.7): that is the level's address and no key of this record, as `parts[*].condition` is for a part, and
+  // the level below is settled before the one above reads it.
+  return keys.map((k) => (levelStep(k)?.rest === r.produces?.key ? k : k.replace(/^\w+::/, "")));
 }
 
 /** Top-level `and`-terms of a condition that pin a key to a set of values. */
