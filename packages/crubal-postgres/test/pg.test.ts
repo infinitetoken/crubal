@@ -372,6 +372,31 @@ test("the border over the store: intake kept, runs idempotent across transaction
   assert.deepEqual(await store.verify(), { valid: true });
 });
 
+test("revision 64: a class's own keep form over the store: what the class asks lands, its intake is kept under the form's name, the chain holds", { skip: !url }, async () => {
+  const dict = emptyDictionary();
+  const text = "kind: item\n  levels: product, unit\n  base: Item\n\nfacet: title\n  type: text\nfacet: speed\n  type: text\nfacet: tracking\n  type: text\n\nclass: Item\n  for: item\n  uses: Tape\n  facets:\n    !title\n\nclass: Tape\n  for: item\n  facets:\n    speed\n    unit::tracking\n";
+  readDefinitions(text, dict);
+  const owner = "classform.example";
+  const store = new PgStore(pool, owner);
+  await store.commit({ migration: "backfill" }, (d) => {
+    d.records.set("P-1", { id: "P-1", kind: "item", level: "product", owner, values: { title: "Heat" }, sources: { "*": { origin: "declared", via: "L-0" } } });
+    d.records.set("U-1", { id: "U-1", kind: "item", level: "unit", of: "P-1", owner, values: {} });
+  }, "2026-11-21T17:00:00Z");
+  const border = new PgBorder(store, { dict, contracts: [] });
+  const got = await border.receive("class:Tape", "P-1", '{"speed":"SP","other":"x"}', undefined, "2026-11-21T17:00:01Z");
+  assert.equal(got.landed, "value", JSON.stringify(got));
+  assert.equal((await store.state()).records.get("P-1")?.values.speed, "SP");
+  const below = await border.receive("class:Tape", "U-1", '{"tracking":"steady"}', undefined, "2026-11-21T17:00:02Z");
+  assert.equal(below.landed, "value", JSON.stringify(below));
+  assert.equal((await store.state()).records.get("U-1")?.sources?.tracking?.origin, "observed");
+  const kept = (await pool.query("select contract, json from intake where owner = $1 order by intake", [owner])).rows;
+  assert.deepEqual(kept.map((k) => k.contract), ["class:Tape", "class:Tape"]);
+  assert.deepEqual(kept[0].json.outcomes.map((o: { from: string; outcome: string }) => [o.from, o.outcome]), [["speed", "absorbed"], ["other", "unknown"]]);
+  await assert.rejects(border.receive("class:Nothing", "P-1", "{}"), /no contract class:Nothing/);
+  await assert.rejects(border.receive("nothing", "P-1", "{}"), /no contract nothing/);
+  assert.deepEqual(await store.verify(), { valid: true });
+});
+
 test("stream contracts read the projection stream and keep the index's cursor; schedules tick once", { skip: !url }, async () => {
   const viewsDir = join(corpus, "..", "views");
   const dict = emptyDictionary();

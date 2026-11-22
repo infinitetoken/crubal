@@ -4,7 +4,8 @@
 // (7.8). Data crossing a border is verified against the presenter's published key (8.5.1).
 
 import { offered } from "./dictionary.ts";
-import { readThrough } from "./lifecycle.ts";
+import { classForm, classOfForm, reached } from "./class-forms.ts";
+import { readThrough, wornBy } from "./lifecycle.ts";
 import { compareVersions, latestVersion } from "./versions.ts";
 import type { Access, Edge } from "./access.ts";
 import { arrive, type Arrival } from "./arrival.ts";
@@ -570,15 +571,62 @@ export class Exchange {
     return c.needs;
   }
 
+  /** The classes a record wears and the ones worn above it, as a class's own form reads them (7.7). */
+  private wornAround(r: Record): { own: string[]; above: string[] } {
+    const above: string[] = [];
+    const seen = new Set<string>([r.id]);
+    for (let up = r.of ? this.records.get(r.of) : undefined; up && !seen.has(up.id); up = up.of ? this.records.get(up.of) : undefined) {
+      seen.add(up.id);
+      above.push(...wornBy(this.dict, up));
+    }
+    return { own: wornBy(this.dict, r), above };
+  }
+
+  /**
+   * A contract by name for a record: the written one, else a class's own keep form (`class:<Class>`, 7.7,
+   * revision 64), read from the class for this record's level and what it wears.
+   */
+  contractFor(name: string, recordId: string): Contract | undefined {
+    const written = this.contracts.get(name);
+    if (written || classOfForm(name) === undefined) return written;
+    const r = this.records.get(recordId);
+    if (!r) return undefined;
+    const { own, above } = this.wornAround(r);
+    return classForm(this.dict, name, r, own, above);
+  }
+
+  /**
+   * Who may run a class's own form (7.7): whoever may keep the record through a written keep form of its
+   * own, one for a class the record wears, its base among them. No new permission and no new menu item.
+   * With no access to consult, or no caller, the run is the owner's and passes as any other does.
+   */
+  private permittedByOwnForm(recordId: string, callerId?: string): string | null {
+    const r = this.records.get(recordId);
+    if (!r) return "permission";
+    if (!this.access || !callerId) return null;
+    const worn = reached(this.dict, wornBy(this.dict, r));
+    let last: string | null = "permission";
+    for (const f of this.contracts.values()) {
+      if (f.kind !== "form" || (f.role ?? "keep") !== "keep" || !f.parts.for || !worn.has(f.parts.for)) continue;
+      last = this.permitted(f, recordId, callerId);
+      if (!last) return null;
+    }
+    return last;
+  }
+
   /**
    * Steps 5–6 for a receive contract: map the answer back, compare with the record, and land it. Under a
    * gated edge (14.7) the values land as suggestions for the edge's reviewer, whatever the contract says.
    */
   receiveRun(name: string, recordId: string, body: string, callerId?: string, forRun?: string): RunResult {
-    const c = this.contracts.get(name);
+    const c = this.contractFor(name, recordId);
     const r = this.records.get(recordId);
     if (!c || !r) throw new Error(`no contract ${name} or record ${recordId}`);
     const head: RunResult = { contract: name, record: recordId, ...(callerId ? { caller: callerId } : {}) };
+    // A class's own form (7.7, revision 64) answers only where the record reaches the class: a record that
+    // wears nothing of it has no field of it to keep.
+    const ownForm = !this.contracts.has(name);
+    if (ownForm && !c.needs.length) return { ...head, stopped: "class", reason: `${recordId} holds nothing ${c.parts.class} asks at its level` };
     // An answer that names a run the store doesn't know is never guessed onto a record (docs/design/runs.md).
     if (forRun !== undefined) {
       const known = this.runOf(forRun)?.contract === name;
@@ -589,7 +637,7 @@ export class Exchange {
         return { ...head, stopped: "run", reason: `no run ${forRun}`, log: l };
       }
     }
-    const stopped = this.permitted(c, recordId, callerId);
+    const stopped = ownForm ? this.permittedByOwnForm(recordId, callerId) : this.permitted(c, recordId, callerId);
     if (stopped) return { ...head, stopped };
     const log = forRun ?? this.nextLog();
     const intake = receive(c, body, recordId, this.dict, `I-${log.slice(2)}`);

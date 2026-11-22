@@ -16,6 +16,7 @@ export { evaluate, parseCondition, type Truth } from "./conditions.ts";
 export { checkRules, Engine, readRules, shortcutRules, type Result, type Rule, type Strength } from "./rules.ts";
 export { entryHash, fieldPath, keyFor, land, matchParts, proposeSplit, readContracts, receive, sha256, validate, verifyChain, verifySig, writeHash, type Contract, type IntakeOutcome, type IntakeRecord, type Key, type Keys, type Observation } from "./store.ts";
 export { checkRecipe, dryRun, readRecipes, restamp, type Recipe, type ReviewItem, type Step, type StepStats } from "./migrate.ts";
+export { CLASS_FORM, classForm, classFormLines, classFormName, classOfForm } from "./class-forms.ts";
 export { checkContracts, Exchange, proposalMet, quorumHolds, readRoles, verifyBorder, versionGate, type Role, type RunResult, type Offer } from "./exchange.ts";
 export { askWords, checkActsInForce, checkFlowsInForce, checkPackages, HUES, isHue, readPackages, type Flow, type CasePress, type StopAsk, type FlowJoin, type FlowStamp, type StopCase, casePress, flowJoins, flowStamps, sharesOf, type FlowStop, type Hue, type PackageInfo, type Lane, type LanePress, type Utility } from "./packages.ts";
 export { STANDARD_PACKAGES, standardDefinitions } from "./std-packages.ts";
