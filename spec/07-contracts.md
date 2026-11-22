@@ -221,6 +221,26 @@ A form is a contract with a person. Its screen assembles itself:
   fields are the package's word; how its screen is drawn and what the act's body does with the answers
   are the mounting app's, as the act's body is. (Revision 16.)
 
+**A class is its own keep form (revision 64).** A package need not write a class's lines a second time as
+a form's needs. For every class the engine reads a keep form named `class:<Class>` (a written contract's
+name holds no colon, so the two never meet):
+
+- its fields are the class's own lines, in the class's order and sections, and it takes each answer by its
+  facet's name. The classes it `uses` have forms of their own;
+- a line placed nowhere is answered on a record whose own classes reach the class, directly or through a
+  class that uses it. A line placed at a level (`unit::grade`) is answered on a record of that level alone,
+  where its own classes or the ones worn above it reach the class. A record that holds nothing the class
+  asks at its level is refused (`stopped: class`);
+- `origin` is what a person does at the record's level: `observed` at the last level of a kind that has
+  more than one (the thing in hand), `declared` anywhere else;
+- who may run it is whoever may keep the record through a written keep form of its own: a keep form `for`
+  a class the record wears, its kind's base among them, that the caller is permitted (its menu item, its
+  audience, its `who`, its quorum). A class's own form adds no permission and no menu item, and where a
+  record has no written keep form a caller may run, none of its classes' forms may be run by them;
+- an answer the class does not ask is told in the run's outcomes as `unknown` and never lands, as through
+  any form. A written form is untouched and runs beside it: it remains the way to ask fields of several
+  classes together, to narrow a field, or to make a record.
+
 ```crubal
 contract: judge
   kind: form

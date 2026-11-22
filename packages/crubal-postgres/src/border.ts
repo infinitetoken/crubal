@@ -13,7 +13,7 @@ import { MemoryRecords } from "@crubal/engine";
 import type { Rule } from "@crubal/engine";
 import { isSchedule, readSchedule, ticksDue } from "@crubal/engine";
 import { openItems } from "@crubal/engine";
-import { type Contract, receive } from "@crubal/engine";
+import { classOfForm, type Contract, receive } from "@crubal/engine";
 import type { Offer } from "@crubal/engine";
 import type { StreamEntry } from "@crubal/engine";
 import type { PgStore } from "./store.ts";
@@ -195,11 +195,17 @@ export class PgBorder {
 
   /** A receive contract's run on a record (7.4 steps 5–6), its intake kept; with `forRun`, a late answer closing that run. */
   async receive(name: string, recordId: string, body: string, callerId?: string, at?: string, forRun?: string, cite?: string): Promise<RunResult> {
-    const c = this.contracts.get(name);
-    if (!c) throw new Error(`no contract ${name}`);
-    const seed = c.lands === "observation" ? await this.evidenceFor(recordId) : {};
-    const r = await this.run((ex) => ex.receiveRun(name, recordId, body, callerId, forRun), at, seed, cite);
-    if (typeof r.log === "string") await this.keepIntake(c, body, recordId, r.log, at);
+    // A written contract, or a class's own keep form (7.7, revision 64), which the run reads for the record.
+    const written = this.contracts.get(name);
+    if (!written && classOfForm(name) === undefined) throw new Error(`no contract ${name}`);
+    const seed = written?.lands === "observation" ? await this.evidenceFor(recordId) : {};
+    let c: Contract | undefined = written;
+    const r = await this.run((ex) => {
+      c ??= ex.contractFor(name, recordId);
+      if (!c) throw new Error(`no contract ${name}`);
+      return ex.receiveRun(name, recordId, body, callerId, forRun);
+    }, at, seed, cite);
+    if (c && typeof r.log === "string") await this.keepIntake(c, body, recordId, r.log, at);
     return r;
   }
 
