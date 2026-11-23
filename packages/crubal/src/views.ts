@@ -3,7 +3,7 @@
 // counts follow the other picks; audiences and show rules decide visibility, and roles narrow an audience;
 // a view's read set decides which projection rows go stale.
 
-import { readThrough } from "./lifecycle.ts";
+import { readThrough } from "./through.ts";
 import type { Access } from "./access.ts";
 import { serialize } from "./canonical.ts";
 import { evaluate, parseCondition } from "./conditions.ts";

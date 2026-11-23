@@ -10,7 +10,12 @@ import type { Json, JsonObject, Record, Source } from "./model.ts";
 import { MemoryRecords, type RecordSet } from "./records.ts";
 import { readUnder } from "./read-text.ts";
 import { land } from "./store.ts";
+import { aboveBoth, bothKeys, classLines, partThrough, placedKeys, readThrough, wornBy } from "./through.ts";
 import { CrubalError, type Node, readTree } from "./tree.ts";
+
+// What a record reads through from above lives in through.ts, which needs nothing from Node; said here too, so
+// whoever read it from this file still does.
+export { aboveBoth, bothKeys, partThrough, placedKeys, readThrough, wornBy };
 
 const isObj = (v: Json | undefined): v is JsonObject => typeof v === "object" && v !== null && !Array.isArray(v);
 
@@ -39,47 +44,6 @@ export function effective(records: RecordSet, r: Record, dict?: Dictionary): Jso
   return { ...(up ? readThrough(dict, up, r, effective(records, up, dict)) : {}), ...r.values };
 }
 
-/** The keys held at both at a record's level (1.7, 5.3.3 `both`), by the classes named. */
-export function bothKeys(dict: Dictionary, wears: string[], level: string): Set<string> {
-  const keys = new Set<string>();
-  for (const w of wears) for (const l of classLines(dict, w)) if (l.level === level && l.held === "both") keys.add(l.facet);
-  return keys;
-}
-
-/**
- * The classes a record wears: its kind's base class, whether or not `wears` lists it (5.5), then its own.
- * With the record above, the classes that say what this record holds: the ones above, then its own.
- */
-export function wornBy(dict: Dictionary, r: Record | undefined): string[] {
-  if (!r) return [];
-  const base = dict.kinds.get(r.kind)?.base;
-  return [...new Set([...(base ? [base] : []), ...(r.wears ?? [])])];
-}
-
-/** The keys the classes named place at a level (5.3.3: a `level::` line declares a vary step beside the kind's own). */
-export function placedKeys(dict: Dictionary, wears: string[], level: string): Set<string> {
-  const keys = new Set<string>();
-  for (const w of wears) for (const l of classLines(dict, w)) if (l.level === level) keys.add(l.facet);
-  return keys;
-}
-
-/** What a record reads from the values above it: all of them, less the keys held at both at its level. */
-export function readThrough(dict: Dictionary | undefined, up: Record, r: Record, above: JsonObject): JsonObject {
-  if (!dict) return above;
-  const both = bothKeys(dict, [...wornBy(dict, up), ...wornBy(dict, r)], r.level);
-  if (!both.size) return above;
-  const out = { ...above };
-  for (const k of both) delete out[k];
-  return out;
-}
-
-/** The values above a record under its keys held at both, each at its level's address (`product::qty`, 1.10). */
-export function aboveBoth(dict: Dictionary, up: Record, r: Record, above: JsonObject): JsonObject {
-  const out: JsonObject = {};
-  for (const k of bothKeys(dict, [...wornBy(dict, up), ...wornBy(dict, r)], r.level)) if (above[k] !== undefined) out[`${up.level}::${k}`] = above[k] as Json;
-  return out;
-}
-
 const isObjV = (v: Json | undefined): v is JsonObject => typeof v === "object" && v !== null && !Array.isArray(v);
 
 /**
@@ -106,29 +70,11 @@ export function effectiveParts(records: RecordSet, r: Record, dict?: Dictionary)
   return [...byRow.values()];
 }
 
-/** A part above as a record at `level` reads it: its values, less the keys its classes hold at both there. */
-export function partThrough(dict: Dictionary | undefined, part: JsonObject, level: string): JsonObject {
-  if (!dict || !isObjV(part.values)) return part;
-  const both = bothKeys(dict, (Array.isArray(part.wears) ? part.wears : []).map(String), level);
-  if (!both.size) return part;
-  const values = { ...part.values };
-  for (const k of both) delete values[k];
-  return { ...part, values };
-}
-
 /** The keys a record owns on a part it mirrors (1.7 for parts): its level's vary step, and the part classes' `level::` lines at its level. */
 export function ownedPartKeys(dict: Dictionary, r: Record, partWears: string[]): Set<string> {
   const keys = new Set(dict.vary.get(r.level) ?? []);
   for (const w of partWears) for (const l of classLines(dict, w)) if (l.level === r.level) keys.add(l.facet);
   return keys;
-}
-
-function classLines(dict: Dictionary, name: string, seen = new Set<string>()): ClassDef["lines"] {
-  if (seen.has(name)) return [];
-  seen.add(name);
-  const c = dict.classes.get(name);
-  if (!c) return [];
-  return [...c.uses.flatMap((u) => classLines(dict, u, seen)), ...c.lines];
 }
 
 /** The keys a record owns (1.7): its level's vary step, and the `level::` lines of the classes above and on it. */
