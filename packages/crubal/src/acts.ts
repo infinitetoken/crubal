@@ -123,6 +123,8 @@ export type Act = {
   replaces?: string;
   label?: string;
   describe?: string;
+  /** The level it acts on; or (revision 65) `wearing <Class>`: every record that wears the class, whatever its
+   * kind and level, read with `actClassOf`. */
   on: string;
   /** Revision 35: the act may land on fewer than the record holds, where its level declares its quantity. */
   takes?: "share";
@@ -475,6 +477,8 @@ export type ActEnv = {
   utilities: { name: string; acts: { name: string }[] }[];
   levels: Set<string>;
   kinds: Set<string>;
+  /** Revision 65: the classes, which an act may stand on (`on: wearing <Class>`). */
+  classes?: Set<string>;
   facets: Set<string>;
   /** The facet itself, when the dictionary is at hand: a compound's columns and a link's type are checked by it. */
   facetOf?: (key: string) => Facet | undefined;
@@ -490,6 +494,9 @@ export type ActEnv = {
 };
 
 const bare = (facet: string) => facet.replace(/^\w+::/, "");
+
+/** Revision 65: the class an act stands on (`on: wearing <Class>`), where it names no level. */
+export const actClassOf = (a: Pick<Act, "on">): string | undefined => a.on.match(/^wearing (\S+)$/)?.[1];
 
 /** Every term a `when` reads, its `and`s among them. */
 export const termsOf = (w: ActWhen | undefined): ActTerm[] => (w ? [w, ...(w.and ?? [])].flatMap((c): ActTerm[] => ("has" in c ? [{ ref: c.has }] : [c.left, c.right])) : []);
@@ -510,7 +517,14 @@ export function checkActList(acts: Act[], env: ActEnv): void {
       if (a.replaces && !listed(a.replaces)) throw new CrubalError(`${where} replaces ${a.replaces}, which isn't among ${a.utility}'s acts`, a.line);
       if (!a.replaces && !listed(a.name)) throw new CrubalError(`${where} isn't among ${a.utility}'s acts`, a.line);
     }
-    if (!env.levels.has(a.on) && strict) throw new CrubalError(`${where} is on ${a.on}, which isn't a level ${here}`, a.line);
+    const cls = actClassOf(a);
+    if (/^wearing\b/.test(a.on) && !cls) throw new CrubalError(`${where} is on ${a.on}: wearing names one class`, a.line);
+    if (cls) {
+      // Revision 65: on a class, the act stands on no one level, so what only a level can say is refused.
+      if (env.classes && !env.classes.has(cls) && strict) throw new CrubalError(`${where} is on records wearing ${cls}, which isn't a class ${here}`, a.line);
+      if (a.takes) throw new CrubalError(`${where} takes a share, and stands on a class: a quantity is a level's`, a.line);
+      if (a.route) throw new CrubalError(`${where} routes, and stands on a class: a route reads a level's facets`, a.line);
+    } else if (!env.levels.has(a.on) && strict) throw new CrubalError(`${where} is on ${a.on}, which isn't a level ${here}`, a.line);
     if (a.takes && env.shares && env.levels.has(a.on) && !env.shares.has(a.on)) throw new CrubalError(`${where} takes a share, and ${a.on} declares no quantity: its kind's shares names none for it`, a.line);
     for (const k of a.context) if (!env.kinds.has(k) && !env.levels.has(k) && strict) throw new CrubalError(`${where}'s context names ${k}, which isn't a kind ${here}`, a.line);
     const facetKnown = (f: string) => env.facets.has(bare(f));
