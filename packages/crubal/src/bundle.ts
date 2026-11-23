@@ -12,11 +12,11 @@ import { type ClassDef, type ClassLine, type Dictionary, emptyDictionary, type F
 import { facetJson } from "./dictionary.ts";
 import { type Recipe, readRecipes, type Step } from "./migrate.ts";
 import type { Json, JsonObject } from "./model.ts";
-import { type PackageInfo, readPackages, type Utility, type Lane, type LanePress, type Flow, type CasePress, type StopCase } from "./packages.ts";
+import { type PackageInfo, readPackages, type Utility } from "./packages.ts";
 import { actJson, actText, whenJson, whenText } from "./acts.ts";
 import { readRules, type Rule } from "./rules.ts";
 import { type Contract, type Keys, readContracts, sha256, keyFor } from "./store.ts";
-import { emptyViewSet, type Filter, type Print, readViews, type Shape, VIEW_SET_KEYS, type View, type ViewSet } from "./views.ts";
+import { emptyViewSet, type Filter, readViews, type Shape, VIEW_SET_KEYS, type View, type ViewSet } from "./views.ts";
 
 const isObj = (v: Json | undefined): v is JsonObject => typeof v === "object" && v !== null && !Array.isArray(v);
 
@@ -203,27 +203,6 @@ export function shapeJson(s: Shape): JsonObject {
   return { shape: s.name, slots: s.slots.map((sl) => ({ ...(sl.from.startsWith('"') ? { template: JSON.parse(sl.from) as string } : { from: sl.from }), to: sl.to, ...(sl.required ? { required: true } : {}) })) };
 }
 
-/** A print's JSON form (12.12): what it prints, its inches, its fields and its elements as written. */
-export function printJson(p: Print): JsonObject {
-  const box = (b: { x: number; y: number; w: number; h: number }): JsonObject => ({ x: b.x, y: b.y, w: b.w, h: b.h });
-  return {
-    print: p.name,
-    ...(p.label ? { label: p.label } : {}),
-    ...(p.describe ? { describe: p.describe } : {}),
-    for: p.for,
-    inches: { w: p.inches.w, h: p.inches.h },
-    ...(p.stretch ? { stretch: true } : {}),
-    fields: p.fields.map((f) => ({ slot: f.slot, from: f.from })),
-    elements: p.elements.map((e): JsonObject => {
-      if (e.type === "rect") return { type: "rect", box: box(e.box), fill: e.fill, ...(e.stroke !== undefined ? { stroke: e.stroke } : {}) };
-      if (e.type === "barcode") return { type: "barcode", box: box(e.box), field: e.field, ...(e.rotate ? { rotate: e.rotate } : {}), ...(e.text ? { text: true } : {}) };
-      if (e.type === "qr") return { type: "qr", box: box(e.box), field: e.field, ...(e.gravity ? { gravity: e.gravity } : {}) };
-      if (e.type === "image") return { type: "image", box: box(e.box), field: e.field };
-      return { type: "text", x: e.x, y: e.y, size: e.size, ...("field" in e.source ? { field: e.source.field } : { literal: e.source.literal }), ...(e.anchor ? { anchor: e.anchor } : {}), ...(e.weight ? { weight: e.weight } : {}), ...(e.clip ? { clip: box(e.clip) } : {}), ...(e.rotate ? { rotate: e.rotate } : {}), ...(e.lines ? { lines: e.lines } : {}) };
-    }),
-  };
-}
-
 export function filterJson(f: Filter): JsonObject {
   const o: JsonObject = { filter: f.name, facet: f.facet };
   if (f.marked) o.marked = true;
@@ -300,67 +279,6 @@ export function utilityJson(u: Utility): JsonObject {
   return o;
 }
 
-const pressJson = (p: LanePress): JsonObject => ({ word: p.word, to: p.to, ...(p.glyph ? { glyph: p.glyph } : {}) });
-
-/** A flow (12.11) in the bundle: as written, its stops as `{name, act?, of?}`, its done as `{filter, value}`. */
-export function flowJson(f: Flow): JsonObject {
-  const o: JsonObject = { flow: f.name, version: f.version };
-  if (f.label) o.label = f.label;
-  if (f.utility) o.utility = f.utility;
-  o.follow = f.follow;
-  if (f.serves.length) o.serves = f.serves.map((x) => ({ as: x.as, ...(x.items ? { items: [...x.items] } : {}) }));
-  if (f.context.length) o.context = [...f.context];
-  if (f.replaces) o.replaces = f.replaces;
-  if (f.closed) o.closed = { start: f.closed.start, finish: f.closed.finish, rest: f.closed.rest, ...(f.closed.cancel ? { cancel: f.closed.cancel } : {}) };
-  o.stops = f.stops.map((st) => ({ name: st.name, ...(st.act ? { act: st.act } : {}), ...(st.of ? { of: st.of } : {}), ...(st.with?.length ? { with: st.with.map((w) => ({ facet: w.facet, value: w.value })) } : {}), ...(st.already ? { already: st.already } : {}), ...(st.cases?.length ? { cases: st.cases.map(caseJson) } : {}), ...(st.asks?.length ? { asks: st.asks.map((q): JsonObject => ({ name: q.name, ...(q.utility ? { utility: q.utility } : {}), act: q.act, when: whenJson(q.when), ...(q.open !== undefined ? { open: q.open } : {}), ...(q.words ? { words: q.words } : {}) })) } : {}), ...(st.offers?.length ? { offers: st.offers.map((o): JsonObject => ({ ...(o.utility ? { utility: o.utility } : {}), act: o.act })) } : {}) }));
-  if (f.done) o.done = { filter: f.done.filter, value: f.done.value, ...(f.done.mark ? { mark: true } : {}) };
-  return o;
-}
-
-/** A lane (12.10) in the bundle: as written, its presses as `{word, to}`, its picks as `{filter, value}`. */
-export function laneJson(s: Lane): JsonObject {
-  const o: JsonObject = { lane: s.name, version: s.version };
-  if (s.label) o.label = s.label;
-  if (s.describe) o.describe = s.describe;
-  if (s.about) o.about = s.about;
-  if (s.sort) o.sort = s.sort;
-  if (s.owner) o.owner = s.owner;
-  if (s.utility) o.utility = s.utility;
-  if (s.view) o.view = s.view;
-  if (s.serve) o.serve = s.serve;
-  // A step lane (revision 34) travels as its step and its untils; its picks are the step's two buckets, never written.
-  if (s.step) o.step = s.step;
-  if (s.until?.length) o.until = [...s.until];
-  if (s.after?.length) o.after = [...s.after];
-  if (s.pick && !s.step) o.pick = { filter: s.pick.filter, value: s.pick.value };
-  if (s.done && !s.step) o.done = s.done === "viewed" ? "viewed" : { filter: s.done.filter, value: s.done.value };
-  if (s.group) o.group = s.group;
-  o.band = s.band;
-  o.house = String(s.house);
-  if (s.serves.length) o.serves = s.serves.map((x) => ({ as: x.as, ...(x.items ? { items: [...x.items] } : {}) }));
-  const home: JsonObject = {};
-  if (s.home.figure) home.figure = s.home.figure.of === "count" ? "count" : `${s.home.figure.of} ${s.home.figure.slot}`;
-  if (s.home.word) home.word = "one" in s.home.word ? { one: s.home.word.one, many: s.home.word.many } : s.home.word.word;
-  if (s.home.press) home.press = pressJson(s.home.press);
-  if (s.home.chips.length) home.chips = [...s.home.chips];
-  o.home = home;
-  if (s.card) {
-    const c: JsonObject = { name: [...s.card.name] };
-    if (s.card.sub.length) c.sub = [...s.card.sub];
-    if (s.card.lines.length) c.lines = [...s.card.lines];
-    if (s.card.state) c.state = s.card.state;
-    if (s.card.moment) c.moment = s.card.moment;
-    if (s.card.figure) c.figure = s.card.figure;
-    if (s.card.primary) c.primary = pressJson(s.card.primary);
-    if (s.card.quiet) c.quiet = pressJson(s.card.quiet);
-    if (s.card.quick.length) c.quick = s.card.quick.map(pressJson);
-    c.opens = s.card.opens;
-    if (s.card.face) c.face = s.card.face;
-    o.card = c;
-  }
-  return o;
-}
-
 /** The whole package as the JSON document, without `hash` and `sig`. */
 export function bundleOf(p: Parsed): JsonObject {
   const { info, dict } = p;
@@ -384,8 +302,6 @@ export function bundleOf(p: Parsed): JsonObject {
   for (const c of p.contracts) if (c.parts.version) members[`contract:${c.name}`] = c.parts.version;
   for (const v of p.views.views.values()) if (v.version) members[`view:${v.name}`] = v.version;
   for (const u of info.utilities) if (u.version) members[`utility:${u.name}`] = u.version;
-  for (const s of info.lanes) if (s.version) members[`lane:${s.name}`] = s.version;
-  for (const f of info.flows) if (f.version) members[`flow:${f.name}`] = f.version;
   for (const a of info.acts) if (a.version) members[`act:${a.name}`] = a.version;
   for (const x of info.blocks) if (x.version) members[`block:${x.sort}/${x.name}`] = x.version;
   o.members = members;
@@ -395,7 +311,6 @@ export function bundleOf(p: Parsed): JsonObject {
   if (p.rules.length) o.rules = p.rules.map(ruleJson);
   if (p.contracts.length) o.contracts = p.contracts.map(contractJson);
   if (p.views.shapes.size) o.shapes = [...p.views.shapes.values()].map(shapeJson);
-  if (p.views.prints.size) o.prints = [...p.views.prints.values()].map(printJson);
   if (p.views.filters.size) o.filters = [...p.views.filters.values()].map(filterJson);
   if (p.views.views.size) o.views = [...p.views.views.values()].map(viewJson);
   const roles = rolesJson(p.perms);
@@ -406,10 +321,7 @@ export function bundleOf(p: Parsed): JsonObject {
   if (p.perms.emergency) o.emergency = { approvers: String(p.perms.emergency.approvers), longest: p.perms.emergency.longest };
   if (p.recipes.length) o.recipes = p.recipes.map(recipeJson);
   if (p.instructions.size) o.instructions = [...p.instructions].map(([issuer, list]): JsonObject => ({ issuer, instructions: list.map((i): JsonObject => ({ n: i.n, op: i.op, key: i.key, ...(i.to ? { to: i.to } : {}), ...(i.map.length ? { map: i.map.map(([a, b]) => ({ from: a, to: b })) } : {}) })) }));
-  if (info.groups.length) o.groups = info.groups.map((g): JsonObject => ({ group: g.name, ...(g.label ? { label: g.label } : {}), ...(g.owner ? { owner: g.owner } : {}), ...(g.order !== undefined ? { order: String(g.order) } : {}) }));
   if (info.utilities.length) o.utilities = info.utilities.map(utilityJson);
-  if (info.lanes.length) o.lanes = info.lanes.map(laneJson);
-  if (info.flows.length) o.flows = info.flows.map(flowJson);
   if (info.acts.length) o.acts = info.acts.map(actJson);
   // Revision 58: a prefixed block is carried as written (11.9): its sort and name in one word, its inside line by line.
   if (info.blocks.length) o.blocks = info.blocks.map((x): JsonObject => ({ block: `${x.sort}/${x.name}`, ...(x.version ? { version: x.version } : {}), lines: [...x.lines] }));
@@ -572,28 +484,6 @@ function recipeText(r: JsonObject): string[] {
 
 const shapeText = (s: JsonObject): string[] => [`shape: ${s.shape}`, "  slots:", ...((s.slots as JsonObject[]) ?? []).map((sl) => `    ${sl.required === true ? "!" : ""}${typeof sl.template === "string" ? JSON.stringify(sl.template) : sl.from} -> ${sl.to}`)];
 
-const printText = (p: JsonObject): string[] => {
-  const b = (v: JsonObject[string] | undefined): string => (isObj(v) ? `${v.x} ${v.y} ${v.w} ${v.h}` : "0 0 1 1");
-  const el = (e: JsonObject): string => {
-    if (e.type === "rect") return `rect ${b(e.box)} fill ${String(e.fill ?? "white")}${e.stroke !== undefined ? ` stroke ${String(e.stroke)}` : ""}`;
-    if (e.type === "barcode") return `barcode ${b(e.box)} ${String(e.field)}${e.rotate ? ` rotate ${String(e.rotate)}` : ""}${e.text === true ? " text" : ""}`;
-    if (e.type === "qr") return `qr ${b(e.box)} ${String(e.field)}${e.gravity ? ` gravity ${String(e.gravity)}` : ""}`;
-    if (e.type === "image") return `image ${b(e.box)} ${String(e.field)}`;
-    return `text ${String(e.x)} ${String(e.y)} ${String(e.size)} ${typeof e.literal === "string" ? JSON.stringify(e.literal) : String(e.field)}${e.anchor ? ` anchor ${String(e.anchor)}` : ""}${e.weight ? ` weight ${String(e.weight)}` : ""}${isObj(e.clip) ? ` clip ${b(e.clip)}` : ""}${e.rotate ? ` rotate ${String(e.rotate)}` : ""}${typeof e.lines === "number" ? ` lines ${String(e.lines)}` : ""}`;
-  };
-  const inches = isObj(p.inches) ? p.inches : {};
-  return [
-    `print: ${p.print}`,
-    ...(typeof p.label === "string" ? [`  label: ${p.label}`] : []),
-    ...(typeof p.describe === "string" ? [`  describe: ${p.describe}`] : []),
-    `  for: ${p.for}`,
-    `  inches: ${String(inches.w)} ${String(inches.h)}`,
-    ...(p.stretch === true ? ["  stretch: yes"] : []),
-    ...((p.fields as JsonObject[] | undefined)?.length ? ["  fields:", ...(p.fields as JsonObject[]).map((f) => `    ${f.slot} -> ${f.from}`)] : []),
-    ...((p.elements as JsonObject[] | undefined)?.length ? ["  elements:", ...(p.elements as JsonObject[]).map((e) => `    ${el(e)}`)] : []),
-  ];
-};
-
 function filterText(f: JsonObject): string[] {
   const out = [`filter: ${f.filter}`, `  facet: ${f.facet}`];
   if (Array.isArray(f.buckets)) out.push("  buckets:", ...f.buckets.map((b) => { const bb = b as JsonObject; const name = /[\s:]/.test(String(bb.name)) ? JSON.stringify(bb.name) : String(bb.name); return isObj(bb.range) ? `    ${name}: ${bb.range.min}..${bb.range.max}` : `    ${name}: ${list(bb.values as Json[])}`; }));
@@ -648,110 +538,19 @@ export function printBundle(b: JsonObject): string {
   blocks("recipes", recipeText);
   blocks("instructions", instructionsText);
   blocks("shapes", shapeText);
-  blocks("prints", printText);
   blocks("filters", filterText);
   blocks("views", viewText);
   blocks("roles", roleText);
   if (isObj(b.permissions)) out.push(...permissionsText(b.permissions), "");
   if (isObj(b.ownership)) out.push("ownership:", ...Object.entries(b.ownership).map(([k, v]) => `  ${k}: ${(v as string[]).join(", ")}`), "");
   if (isObj(b.emergency)) out.push("emergency:", `  approvers: ${b.emergency.approvers}`, `  longest: ${b.emergency.longest}`, "");
-  blocks("groups", (g) => [`group: ${g.group}`, ...kv("  ", "label", g.label), ...kv("  ", "owner", g.owner), ...kv("  ", "order", g.order)]);
   blocks("utilities", utilityText);
-  blocks("lanes", laneText);
-  blocks("flows", flowText);
   blocks("acts", actText);
   blocks("blocks", (x) => {
     const [sort = "", name = ""] = String(x.block).split("/");
     return [`${sort}: ${name}${typeof x.version === "string" ? ` /${x.version}` : ""}`, ...((x.lines as string[] | undefined) ?? []).map((l) => `  ${l}`)];
   });
   return `${out.join("\n").trimEnd()}\n`;
-}
-
-const quoteWord = (w: string) => `"${w.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-const pressText = (p: Json | undefined): string | undefined =>
-  isObj(p) && typeof p.word === "string" && typeof p.to === "string"
-    ? `${/[:\s]/.test(p.word) ? quoteWord(p.word) : p.word}${typeof p.glyph === "string" ? ` as ${p.glyph}` : ""} -> ${p.to}`
-    : undefined;
-const pickText = (p: Json | undefined): string | undefined => (isObj(p) ? (p.mark === true ? String(p.filter) : `${p.filter} = ${String(p.value)}`) : typeof p === "string" ? p : undefined);
-
-const casePressJson = (p: CasePress): JsonObject => ({ word: p.word, runs: p.runs.map((r) => ({ act: r.act, ...(r.utility ? { utility: r.utility } : {}), ...(r.onFound ? { onFound: true } : {}) })) });
-const caseJson = (c: StopCase): JsonObject => ({ kind: c.kind, ...(c.name ? { name: c.name } : {}), answer: c.answer, ...(c.when ? { when: { lane: c.when.lane, facet: c.when.facet } } : {}), yes: casePressJson(c.yes), no: casePressJson(c.no), ...(c.or.length ? { or: c.or.map(casePressJson) } : {}) });
-const casePressText = (p: JsonObject): string => {
-  const runs = (Array.isArray(p.runs) ? (p.runs as JsonObject[]) : []).map((r) => `${typeof r.utility === "string" ? `${r.utility}.` : ""}${r.act}${r.onFound === true ? " on found" : ""}`);
-  return `${p.word}${runs.length ? ` -> ${runs.join(", ")}` : ""}`;
-};
-/** The lines beneath a stop (12.11, revision 41): already, then each case with its presses. */
-function stopCaseText(st: JsonObject): string[] {
-  const out: string[] = [];
-  if (st.already === "ignore") out.push("      already: ignore");
-  for (const c of Array.isArray(st.cases) ? (st.cases as JsonObject[]) : []) {
-    const when = isObj(c.when) ? ` when any ${c.when.lane} where ${c.when.facet} = record` : "";
-    out.push(`      ${c.kind === "flag" ? `flag ${c.name}` : "stranger"}: ${c.answer}${when}`);
-    if (isObj(c.yes)) out.push(`        yes: ${casePressText(c.yes)}`);
-    if (isObj(c.no)) out.push(`        no: ${casePressText(c.no)}`);
-    for (const o of Array.isArray(c.or) ? (c.or as JsonObject[]) : []) out.push(`        or: ${casePressText(o)}`);
-  }
-  // Revision 48: the questions the link asks, and those it offers.
-  for (const q of Array.isArray(st.asks) ? (st.asks as JsonObject[]) : [])
-    out.push(`      asks ${q.name}: ${typeof q.utility === "string" ? `${q.utility}.` : ""}${q.act} when ${isObj(q.when) ? whenText(q.when) : ""}${typeof q.open === "string" ? ` open ${q.open}` : ""}${typeof q.words === "string" ? ` "${q.words}"` : ""}`);
-  const offers = Array.isArray(st.offers) ? (st.offers as JsonObject[]) : [];
-  if (offers.length) out.push(`      offers: ${offers.map((o) => `${typeof o.utility === "string" ? `${o.utility}.` : ""}${o.act}`).join(", ")}`);
-  return out;
-}
-
-function flowText(f: JsonObject): string[] {
-  const out = [`flow: ${f.flow} /${f.version}`, ...kv("  ", "label", f.label), ...kv("  ", "utility", f.utility), ...kv("  ", "follow", f.follow)];
-  if (Array.isArray(f.serves)) out.push(`  serves: ${(f.serves as JsonObject[]).map((x) => `${x.as}${Array.isArray(x.items) ? `(${(x.items as string[]).join(", ")})` : ""}`).join(", ")}`);
-  if (Array.isArray(f.context) && f.context.length) out.push(`  context: ${(f.context as string[]).join(", ")}`);
-  out.push(...kv("  ", "replaces", f.replaces));
-  if (f.closed && typeof f.closed === "object") {
-    const cl = f.closed as JsonObject;
-    out.push(`  closed: ${cl.start} to ${cl.finish} over ${cl.rest}${typeof cl.cancel === "string" ? ` cancel ${cl.cancel}` : ""}`);
-  }
-  if (Array.isArray(f.stops)) {
-    out.push("  stops:");
-    for (const st of f.stops as JsonObject[]) {
-      out.push(`    ${st.name}${typeof st.act === "string" ? ` -> ${st.act}` : ""}${typeof st.of === "string" ? ` of ${st.of}` : ""}${Array.isArray(st.with) && st.with.length ? ` with ${(st.with as JsonObject[]).map((w) => `${w.facet} = ${w.value}`).join(", ")}` : ""}`);
-      out.push(...stopCaseText(st));
-    }
-  }
-  if (f.done !== undefined) out.push(`  done: ${pickText(f.done)}`);
-  return out;
-}
-
-function laneText(s: JsonObject): string[] {
-  const out = [`lane: ${s.lane} /${s.version}`, ...kv("  ", "label", s.label), ...kv("  ", "describe", s.describe), ...kv("  ", "about", s.about), ...kv("  ", "sort", s.sort), ...kv("  ", "owner", s.owner), ...kv("  ", "utility", s.utility), ...kv("  ", "view", s.view), ...kv("  ", "serve", s.serve)];
-  if (typeof s.step === "string") out.push(`  step: ${s.step}`);
-  if (Array.isArray(s.until) && s.until.length) out.push(`  until: ${s.until.join(", ")}`);
-  if (Array.isArray(s.after) && s.after.length) out.push(`  after: ${s.after.join(", ")}`);
-  if (s.pick !== undefined) out.push(`  pick: ${pickText(s.pick)}`);
-  if (s.done !== undefined) out.push(`  done: ${pickText(s.done)}`);
-  out.push(...kv("  ", "group", s.group), ...kv("  ", "band", s.band), ...kv("  ", "house", s.house));
-  if (Array.isArray(s.serves)) out.push(`  serves: ${(s.serves as JsonObject[]).map((x) => `${x.as}${Array.isArray(x.items) ? `(${(x.items as string[]).join(", ")})` : ""}`).join(", ")}`);
-  if (isObj(s.home)) {
-    const h = s.home;
-    out.push("  home:");
-    if (typeof h.figure === "string") out.push(`    figure: ${h.figure}`);
-    if (isObj(h.word)) out.push(`    word: one ${quoteWord(String(h.word.one))} many ${quoteWord(String(h.word.many))}`);
-    else if (typeof h.word === "string") out.push(`    word: ${quoteWord(h.word)}`);
-    const pr = pressText(h.press);
-    if (pr) out.push(`    press: ${pr}`);
-    if (Array.isArray(h.chips) && h.chips.length) out.push(`    chips: ${(h.chips as string[]).join(", ")}`);
-  }
-  if (isObj(s.card)) {
-    const c = s.card;
-    out.push("  card:");
-    for (const k of ["name", "sub", "lines"] as const) if (Array.isArray(c[k]) && (c[k] as string[]).length) out.push(`    ${k}: ${(c[k] as string[]).join(", ")}`);
-    for (const k of ["state", "moment", "figure"] as const) if (typeof c[k] === "string") out.push(`    ${k}: ${c[k]}`);
-    for (const k of ["primary", "quiet"] as const) {
-      const t = pressText(c[k]);
-      if (t) out.push(`    ${k}: ${t}`);
-    }
-    if (Array.isArray(c.quick)) for (const q of c.quick as JsonObject[]) { const t = pressText(q); if (t) out.push(`    quick: ${t}`); }
-    if (typeof c.opens === "string") out.push(`    opens: ${c.opens}`);
-    if (typeof c.face === "string") out.push(`    face: ${c.face}`);
-  }
-  return out;
 }
 
 function utilityText(u: JsonObject): string[] {
@@ -781,7 +580,7 @@ export function readBundleInto(b: JsonObject, into: Dictionary = emptyDictionary
 /** An empty Parsed to read packages onto, in order. */
 export function emptyParsed(): Parsed {
   const { perms } = readAccess("");
-  return { info: { name: "", version: "", owner: "", line: 0, crubal: 2, crubalLine: 0, extends: [], prefixes: new Map(), trust: [], dict: emptyDictionary(), contracts: [], header: {}, terms: {}, utilities: [], groups: [], lanes: [], flows: [], acts: [], blocks: [] }, dict: emptyDictionary(), rules: [], contracts: [], views: emptyViewSet(), perms, edges: [], recipes: [], instructions: new Map() };
+  return { info: { name: "", version: "", owner: "", line: 0, crubal: 2, crubalLine: 0, extends: [], prefixes: new Map(), trust: [], dict: emptyDictionary(), contracts: [], header: {}, terms: {}, utilities: [], acts: [], blocks: [] }, dict: emptyDictionary(), rules: [], contracts: [], views: emptyViewSet(), perms, edges: [], recipes: [], instructions: new Map() };
 }
 
 /**
@@ -792,7 +591,7 @@ export function readBundleOnto(bundle: JsonObject, base: Parsed): Parsed {
   const text = printBundle(bundle);
   readDefinitions(text, base.dict);
   const [info] = readPackages(text);
-  if (info) base.info = { ...info, dict: base.dict, terms: Object.keys(info.terms).length ? info.terms : base.info.terms, utilities: [...base.info.utilities.filter((h) => !info.utilities.some((n) => n.name === h.name)), ...info.utilities], groups: [...base.info.groups.filter((h) => !info.groups.some((n) => n.name === h.name)), ...info.groups], lanes: [...base.info.lanes.filter((h) => !info.lanes.some((n) => n.name === h.name)), ...info.lanes], flows: [...base.info.flows.filter((h) => !info.flows.some((n) => n.name === h.name)), ...info.flows], acts: [...base.info.acts.filter((h) => !info.acts.some((n) => n.name === h.name)), ...info.acts], blocks: [...base.info.blocks.filter((h) => !info.blocks.some((n) => n.sort === h.sort && n.name === h.name)), ...info.blocks] };
+  if (info) base.info = { ...info, dict: base.dict, terms: Object.keys(info.terms).length ? info.terms : base.info.terms, utilities: [...base.info.utilities.filter((h) => !info.utilities.some((n) => n.name === h.name)), ...info.utilities], acts: [...base.info.acts.filter((h) => !info.acts.some((n) => n.name === h.name)), ...info.acts], blocks: [...base.info.blocks.filter((h) => !info.blocks.some((n) => n.sort === h.sort && n.name === h.name)), ...info.blocks] };
   const byName = <T extends { name: string }>(have: T[], next: T[]) => [...have.filter((h) => !next.some((n) => n.name === h.name)), ...next];
   base.rules = byName(base.rules, readRules(text));
   base.contracts = byName(base.contracts, readContracts(text));

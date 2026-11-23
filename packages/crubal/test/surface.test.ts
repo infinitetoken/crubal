@@ -9,8 +9,7 @@ import { test } from "node:test";
 import { Access, checkPermissions, readAccess } from "../src/access.ts";
 import { permissionsJson } from "../src/bundle.ts";
 import { readDefinitions } from "../src/defs.ts";
-import type { Flow, Lane, Utility } from "../src/packages.ts";
-import { addressPath, readHold, surfaceAnswer, surfaceOf } from "../src/surface.ts";
+import { addressPath, readHold, surfaceAnswer } from "../src/surface.ts";
 
 const lines = (...ls: string[]) => ls.map((l) => readHold(l));
 
@@ -47,51 +46,6 @@ test("running needs seeing, and a case's press takes its link's answer until it 
   const judged = lines("see inventory", "run inventory", "no run inventory/audit/unitsExpected/stranger/or1");
   assert.equal(surfaceAnswer(judged, "run", "inventory/audit/unitsExpected/stranger/yes"), "yes");
   assert.equal(surfaceAnswer(judged, "run", "inventory/audit/unitsExpected/stranger/or1"), "no");
-});
-
-test("the surface is read from the utilities, chains, links, cases and lanes in force", () => {
-  const serves = [{ as: "stockkeeper", line: 1 }];
-  const press = (word: string, act: string) => ({ word, runs: [{ act }] });
-  const utilities = [{ name: "inventory", label: "Inventory", serves }] as unknown as Utility[];
-  const flows = [
-    {
-      name: "audit",
-      label: "Audit",
-      utility: "inventory",
-      serves,
-      stops: [
-        { name: "containersToAudit", act: "startAudit", line: 1 },
-        { name: "unitsExpected", act: "seen", line: 2, cases: [{ kind: "stranger", answer: "ask", yes: press("Re-file here", "refile"), no: press("Put back", "putBack"), or: [press("Quarantine", "quarantine")], line: 3 }] },
-      ],
-    },
-  ] as unknown as Flow[];
-  const lanes = [
-    { name: "unitsExpected", label: "Units expected", utility: "inventory", serves, card: { primary: { word: "Seen", to: "seen", line: 1 }, quick: [{ word: "Not found", to: "notFound", line: 1 }] } },
-    { name: "boxes", label: "Boxes", utility: "inventory", serves, card: { primary: { word: "Transfer", to: "transfer", line: 1 }, quiet: { word: "Open", to: "page", line: 1 }, quick: [] } },
-    { name: "shelf", serves: [{ as: "public", line: 1 }] },
-  ] as unknown as Lane[];
-  const nodes = surfaceOf({ utilities, flows, lanes });
-  assert.deepEqual(
-    nodes.map((n) => `${n.sort} ${n.address}`),
-    [
-      "utility inventory",
-      "chain inventory/audit",
-      "link inventory/audit/containersToAudit",
-      "link inventory/audit/unitsExpected",
-      "press inventory/audit/unitsExpected/notFound",
-      "case inventory/audit/unitsExpected/stranger/yes",
-      "case inventory/audit/unitsExpected/stranger/no",
-      "case inventory/audit/unitsExpected/stranger/or1",
-      "lane inventory/boxes",
-      "press inventory/boxes/transfer",
-      "lane /shelf",
-    ],
-  );
-  const link = nodes.find((n) => n.address === "inventory/audit/unitsExpected");
-  assert.deepEqual([link?.label, link?.acts, link?.serves], ["Units expected", ["seen"], undefined]);
-  assert.deepEqual(nodes.find((n) => n.address.endsWith("/or1"))?.acts, ["quarantine"]);
-  // Every address the reader makes is one a line may name.
-  for (const n of nodes) assert.equal(readHold(`see ${n.address}`).address, n.address);
 });
 
 const PERMS = `permissions: place

@@ -7,12 +7,12 @@ import { test } from "node:test";
 import { bundleOf, parsePackage, printBundle } from "../src/bundle.ts";
 import { serialize } from "../src/canonical.ts";
 import { readDefinitions } from "../src/defs.ts";
-import { checkPackages, flowStamps, readPackages } from "../src/packages.ts";
+import { checkPackages, readPackages } from "../src/packages.ts";
 import { CrubalError } from "../src/tree.ts";
 import { checkViews, readViews, Views } from "../src/views.ts";
 import { actWrites, markFacets } from "../src/acts.ts";
 
-const lane = (name: string, step: string, until: string, act: string) => `lane: ${name} /2027-01-05
+const lane = (name: string, step: string, until: string, act: string) => `cfu:lane: ${name} /2027-01-05
   label: ${name}
   utility: orders
   view: lines
@@ -31,7 +31,7 @@ const lanes = `${lane("linesToPull", "pulled", "shipped, cancelled", "pull")}
 ${lane("linesToPack", "packed", "shipped, cancelled", "pack")}
 ${lane("linesToShip", "shipped", "cancelled", "ship")}`;
 
-const flow = (stops: string, done = "shipped") => `flow: pullPackShip /2027-01-05
+const flow = (stops: string, done = "shipped") => `cfu:flow: pullPackShip /2027-01-05
   label: Pull, pack, ship
   utility: orders
   follow: queue
@@ -124,49 +124,6 @@ test("a marked filter has two buckets: open holds the records with no value, don
   assert.deepEqual([...entered.records].sort(), ["B"], "a line not yet pulled does not wait to pack");
 });
 
-test("a lane's step is read in place of pick and done, with its untils, and travels through the bundle and back", () => {
-  const [info] = readPackages(shop(lanes));
-  const pull = info?.lanes.find((l) => l.name === "linesToPull");
-  assert.equal(pull?.step, "pulled");
-  assert.deepEqual(pull?.until, ["shipped", "cancelled"]);
-  assert.deepEqual([pull?.pick?.filter, pull?.pick?.value], ["pulled", "open"]);
-  assert.deepEqual(pull?.done === "viewed" ? [] : [pull?.done?.filter, pull?.done?.value], ["pulled", "done"]);
-  checkPackages(shop(`${lanes}\n${flow("linesToPull -> pull, linesToPack -> pack, linesToShip -> ship")}`));
-  const source = shop(`${lanes}\n${flow("linesToPull -> pull, linesToPack -> pack, linesToShip -> ship")}`);
-  const bundle = bundleOf(parsePackage(source));
-  const json = bundle.lanes as { lane: string; step?: string; until?: string[]; pick?: unknown; done?: unknown }[];
-  const j = json.find((l) => l.lane === "linesToPull");
-  assert.deepEqual([j?.step, j?.until, j?.pick, j?.done], ["pulled", ["shipped", "cancelled"], undefined, undefined]);
-  const text = printBundle(bundle);
-  assert.match(text, /buckets: marked/);
-  assert.match(text, /step: pulled\n {2}until: shipped, cancelled/);
-  assert.match(text, /\n {2}done: shipped\n/);
-  assert.equal(serialize(bundleOf(parsePackage(text))), serialize(bundle), "the printed text reads back to the same bundle");
-});
-
-test("a step lane is refused when its step or until is no marked filter of its view, or it names a pick or a done as well", () => {
-  refused(lane("x", "orderState", "", "pull"), /step names orderState, which isn't a marked filter/);
-  refused(lane("x", "pulled", "orderState", "pull"), /until names orderState, which isn't a marked filter/);
-  refused(lane("x", "nowhere", "", "pull"), /step names nowhere, which isn't a filter of lines/);
-  assert.throws(() => readPackages(shop(lane("x", "pulled", "", "pull").replace("  step: pulled", "  step: pulled\n  pick: orderState = paid"))), /names a step, so it names no pick and no done/);
-  assert.throws(() => readPackages(shop(lane("x", "pulled", "", "pull").replace("  step: pulled", "  pick: orderState = paid\n  until: shipped"))), /names an until, so it needs a step/);
-});
-
-test("a flow's step stops stand in any order, any may be left out, and each stamps its mark", () => {
-  checkPackages(shop(`${lanes}\n${flow("linesToShip -> ship, linesToPull -> pull, linesToPack -> pack")}`));
-  checkPackages(shop(`${lanes}\n${flow("linesToPull -> pull, linesToShip -> ship")}`));
-  refused(`${lanes}\n${flow("linesToPull -> pull", "orderState")}`, /done names orderState, which isn't a marked filter/);
-  const [info] = readPackages(shop(`${lanes}\n${flow("linesToPack -> pack, linesToPull -> pull, linesToShip -> ship")}`));
-  const f = info?.flows[0];
-  assert.ok(f && info);
-  assert.deepEqual(f.done && [f.done.filter, f.done.value, f.done.mark], ["shipped", "done", true]);
-  assert.deepEqual(flowStamps(f, info.lanes, (flt) => flt), [
-    { stop: "linesToPack", at: 0, facet: "packed", value: "done", mark: true },
-    { stop: "linesToPull", at: 1, facet: "pulled", value: "done", mark: true },
-    { stop: "linesToShip", at: 2, facet: "shipped", value: "done", mark: true },
-  ]);
-});
-
 test("a mark is taken once: an act that sets a mark the record holds is stopped before any write; cleared, it may be taken again", () => {
   const src = shop(`act: pull /2027-01-05
   label: Pull
@@ -232,24 +189,5 @@ view: walk
   // A link step answers a list (a link may be many): one value each here.
   assert.deepEqual(p.rows.map((r) => [r.title, r.slot]), [[["Jaws"], ["A-1"]], [["Jaws"], ["B-2"]]]);
   assert.deepEqual(p.counts.slot, { "A-1": 1, "B-2": 1 });
-});
-
-test("a step lane's after (revision 38): read, bundled and printed, refused when it is no marked filter, stands alone, or names the step or an until", () => {
-  const withAfter = lanes.replace("  step: packed", "  step: packed\n  after: pulled");
-  assert.notEqual(withAfter, lanes, "the sample has a lane by the step packed");
-  const [info] = readPackages(shop(withAfter));
-  const pack = info?.lanes.find((l) => l.step === "packed");
-  assert.deepEqual(pack?.after, ["pulled"]);
-  checkPackages(shop(withAfter));
-  const bundle = bundleOf(parsePackage(shop(withAfter)));
-  const j = (bundle.lanes as { lane: string; after?: string[] }[]).find((l) => l.lane === pack?.name);
-  assert.deepEqual(j?.after, ["pulled"]);
-  const text = printBundle(bundle);
-  assert.match(text, /\n {2}after: pulled\n/);
-  assert.equal(serialize(bundleOf(parsePackage(text))), serialize(bundle), "the printed text reads back to the same bundle");
-  refused(lanes.replace("  step: packed", "  step: packed\n  after: orderState"), /after names orderState, which isn't a marked filter/);
-  assert.throws(() => readPackages(shop(lanes.replace("  step: packed", "  step: packed\n  after: packed"))), /after names its own step, packed/);
-  assert.throws(() => readPackages(shop(lanes.replace("  step: packed", "  step: packed\n  after: shipped"))), /names shipped as an after and an until/);
-  assert.throws(() => readPackages(shop(lane("x", "pulled", "", "pull").replace("  step: pulled", "  pick: orderState = paid\n  after: shipped"))), /names an after, so it needs a step/);
 });
 

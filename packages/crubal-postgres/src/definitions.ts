@@ -6,7 +6,7 @@ import { deserialize, serialize as v8serialize } from "node:v8";
 // owner's working package, every `define` write as the member now stands. The publish checks run on the
 // result, so a definition that breaks the set is refused before it is written.
 
-import { checkActsInForce, checkFlowsInForce, checkPermissions } from "@crubal/engine";
+import { checkActsInForce, checkPermissions } from "@crubal/engine";
 import { emptyParsed, type Parsed, printBundle, readBundleOnto, readDefinitions } from "@crubal/engine";
 import { checkPackage } from "@crubal/engine";
 import { checkContracts } from "@crubal/engine";
@@ -30,7 +30,7 @@ export function unitsExtensionOf(definitions: Iterable<JsonObject>): JsonObject[
 export function workingBundle(owner: string, definitions: Iterable<JsonObject>): JsonObject {
   // The member kinds that carry another kind's word come first (a filter names its facet, a view its shape,
   // a contract its kind), so each define is filed under what it is (G11).
-  const sections: { [member: string]: string } = { filter: "filters", view: "views", contract: "contracts", facet: "facets", class: "classes", rule: "rules", kind: "kinds", shape: "shapes", print: "prints" };
+  const sections: { [member: string]: string } = { filter: "filters", view: "views", contract: "contracts", facet: "facets", class: "classes", rule: "rules", kind: "kinds", shape: "shapes" };
   const b: JsonObject = { crubal: "2", package: "working", version: "working", owner, id: `${owner}/working` };
   // In log order, by member key: a later define of the same member replaces the earlier, a retired one
   // (8.5, 11.4) takes it out, so the working package holds each member once as it now stands.
@@ -163,7 +163,7 @@ export function forgetParsedShared(): void {
  *
  * `replacing` names a package about to take a new version (an install's trial): its version in force gives its
  * definitions alone (facets, classes, kinds, which a recipe and the records still read), and none of its other
- * members (contracts, rules, views, lanes, acts), which the new version replaces whole. Read with them, a
+ * members (contracts, rules, views, acts), which the new version replaces whole. Read with them, a
  * contract the new version dropped was still checked, against a dictionary another package had since moved on
  * from, and the package could never be replaced (2026-11-23: a bench whose photo contract named a key the
  * inventory package had retired refused every later version of itself).
@@ -244,6 +244,5 @@ export function checkAll(p: Parsed): void {
   checkContracts(p.contracts, p.dict, "", new Set(p.views.views.keys()));
   checkViews(p.views, p.dict);
   checkPermissions(p.perms, p.dict, new Set(p.contracts.map((c) => c.name)), new Set(p.views.views.keys()));
-  checkFlowsInForce(p);
   checkActsInForce(p);
 }

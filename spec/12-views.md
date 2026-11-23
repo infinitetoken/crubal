@@ -384,11 +384,8 @@ view with its version when it has one (`"dvds /2026-11-01"`), and the first entr
 A display has no JSON form since revision 66 (12.9): a bundle carries such a template as a block under its
 reader's prefix (11.10).
 
-A lane (12.10) is `{"lane", "version", "label", (revision 55) "describe", "about", (revision 56) "sort", (revision 57) "owner", "utility", "view" | "serve", "pick": {"filter",
-"value"}, "done": {"filter", "value"} | "viewed", or in their place (revision 34) "step" and "until": [filter…], (revision 38) "after": [filter…], "group" (revision 32), "band", "house", "serves": [{"as", "items"}], "home":
-{"figure", "word": {"one", "many"} | "…", "press": {"word", "to", "glyph"?}, "chips"}, "card": {"name", "sub",
-"lines", "state", "moment", "figure", "primary", "quiet", "quick": [{"word", "to", "glyph"?}], "opens", (revision 56) "face"}}` under
-`lanes`, `house` as a string like every number.
+A lane, a flow and a print have no JSON form since revision 67 (12.10 to 12.12): a bundle carries each as a
+block under its reader's prefix (11.10).
 
 ## 12.8 Well-formed views
 
@@ -398,19 +395,11 @@ A package MUST be refused at publish when:
    don't have;
 2. a slot, order key or filter facet names a facet the package doesn't define;
 3. a filter's bucket values aren't real values of its facet, or two buckets of one filter overlap;
-   (revision 34) a lane's `step` or `until`, or a flow's `done` written as a filter alone, names a filter
-   that isn't `marked`; a lane names a `step` beside a `pick` or `done`, or an `until` without a `step`;
 4. an `index` filter isn't among the view's `filters`;
 5. a role grants anything its audience can't see, or names a target that doesn't exist;
 6. a public view's slots or filters read a facet that `show` rules hide from `public`;
-8. a lane names a view, filter, value, slot, utility or act the package doesn't declare, serves an
-   audience wider than its view shows, opens anything but a page, names both a view and a serve, or
-   (revision 32) groups by a filter that isn't its view's or groups a lane the app serves;
-9. a flow names a utility it doesn't declare, a stop that is neither a lane nor a form of the package, an
-   act its utility lacks, a level its kinds lack, or a done that is not a declared filter with a real value;
-   or whose done is not its last lane's (12.11, revision 22; revision 40: lane stops that do not chain are
-   read as a join that passes nothing, never refused), or a list that is a stop with no act (revision 37),
-   or whose context is not a kind or level of the package, or that replaces itself (revision 23);
+8. (withdrawn, revision 67: a lane is no member; 12.10.)
+9. (withdrawn, revision 67: a flow is no member; 12.11.)
 7. (withdrawn, revision 66: a display is no member; 12.9.)
 
 ## 12.9 Displays (withdrawn, revision 66)
@@ -426,355 +415,41 @@ and never the vocabulary's. Since revision 66 it is no member this specification
 - A bundle or a chain written before revision 66 that holds a display still reads: what it says of one is
   read by nothing, and retiring one needs no step (10.5).
 
-## 12.10 Lanes
+## 12.10 Lanes (withdrawn, revision 67)
 
-A **lane** is a row of the grid: one thing a place's people attend to (orders to pick, notices unread,
-items to review), declared by the package that holds its vocabulary, so a place's home is the lanes its
-packages declare and nothing an app wrote for one screen. A lane names what it lists, whom it serves,
-how it sorts, what its home card shows and how its object cards are laid out, with the presses that act
-on them. The app draws it; the engine reads, checks and carries it.
+A lane was a row of the grid a package declares: what it lists (a view and its picks), whom it serves, its home
+card and its object cards with the presses that act on them. It held no value, and the engine computed nothing
+from it: it read the block, checked what it named and carried it. Since revision 67 it is no member this
+specification names:
 
-```crubal
-lane: ordersToPick /2026-11-05
-  label: Orders to pick
-  utility: orders
-  view: desk
-  pick: orderState = paid
-  done: orderState = picking
-  band: daily
-  house: 7
-  serves: owner, fulfiller(pick)
-  home:
-    figure: count
-    word: one "order is paid and waiting to be picked." many "orders are paid and waiting to be picked."
-    press: Pick -> /orders?tab=pick
-    chips: orderState
-  card:
-    name: id, buyer
-    sub: state
-    lines: total, placed
-    state: state
-    moment: placed
-    figure: total
-    primary: Pick -> pick
-    quiet: Open -> page
-    quick: "Confirm address" -> confirmAddress
-    opens: page
-```
+- A package that writes `lane:` is refused, as any block the vocabulary does not name is.
+- A reader that draws rows writes them under its own prefix (11.9), `cfu:lane: ordersToPick /2026-11-05`, and
+  reads the lines the block carries. The lines a lane took (`label:`, `describe:`, `about:`, `sort:`,
+  `owner:`, `utility:`, `view:` or `serve:`, `pick:`, `done:`, `step:`, `until:`, `after:`, `group:`, `band:`,
+  `house:`, `serves:`, `home:` and `card:`) and the checks it met (its view, the view's filters and slots, its
+  utility's acts, an audience no wider than its view shows) are that reader's to keep or change. Nothing
+  inside a carried block is judged at publish or at install.
+- A bundle or a chain written before revision 67 that holds a lane still reads: what it says of one is read by
+  nothing, and retiring one needs no step (10.5).
 
-| Setting | Holds |
-|---|---|
-| `lane` | its name (a lower-case word) and dated version; a member like a view, listed in `members` |
-| `label` | its word on a screen |
-| `describe` · `about` | revision 55: what the lane is, in one line (`describe`), and at length (`about`: why a thing is here and how it leaves). Each is one line of text. A surface shows the first on the lane's own card and the second where the lane is opened; neither changes what the lane holds |
-| `sort` | revision 56: the sort of row the lane is, one lower-case word (letters, digits and hyphens) that belongs to the surface drawing it (a list, a set of steps). The engine reads it, carries it and prints it back, and judges nothing of it beyond its being one word; a surface that does not know the word draws the lane as it would one that says nothing. A lane's `card` MAY say `face` the same way: the face its cards wear on that surface, over the face its kind names (11.2) |
-| `owner` | revision 57: whom the lane's cards belong to on a surface where that differs from its utility (11.1), one lower-case word read as a utility's `owner` is: carried and printed back, judged only as one word, and granting nothing |
-| `utility` | the utility of this package whose acts its presses may name |
-| `view` | the view of this package that serves its cards; the view's shapes give the slots a card may name |
-| `serve` | instead of a view: the name of a function the utility provides, for a lane the app serves itself (a setup, a tally); such a lane has no pick, done or card |
-| `pick` | `filter = value`: the view's filter pick for what is ahead (the to-dos); absent, with no `step`, the lane is a **list**: every record its view serves, in the view's order (revision 17) |
-| `step` | revision 34, in place of `pick` and `done`: one of the view's `marked` filters (12.3). What is ahead is the filter's `open` bucket, the history its `done` bucket. A lane names a `step` or a `pick`, never both |
-| `until` | revision 34, with a `step`: one or more of the view's `marked` filters; a record marked on any of them waits here no longer, whether or not this lane's step was ever done. Absent, a record waits until the step is done |
-| `after` | revision 38, with a `step`: one or more of the view's `marked` filters; a record waits here only once it is marked on each of them. Absent, a record waits from the moment its view serves it |
-| `done` | `filter = value` for what is done (the history), or `viewed`: a card is done once the person has viewed it; the mark is the person's own, never the place's |
-| `band` | `daily`, `weekly` or `rarely`: how soon it wants attention; `rarely` unless said |
-| `house` | a whole number, governance first (0) and the doing rows after; 8 unless said |
-| `group` | revision 32: one of the view's filters (12.3), whose buckets group the row's cards: the row draws one heading card per bucket, the bucket's word and its count (the page's tally), the bucket's cards tucked beneath, one bucket open at a time; absent, the cards stand in one run. A lane the app serves has no view to group by |
-| `serves` | whom the row is for, as a utility's `serves` (14.6): presets, relations or audiences, each optionally narrowed to items; never wider than the view's `show` |
-| `home` | the home card: `figure` is `count` (the view's tally under the pick), `sum <slot>` or `state <slot>`; `word` is `one "…" many "…"` or one text; `press` is `Word -> target` or `Word as glyph -> target` (revision 33); `chips` are the view's filters the home carries |
-| `card` | the object card on the compass: `name`, `sub` and `lines` name slots in order; `state`, `moment` and `figure` name one slot each; `primary`, `quiet` and `quick` are `Word -> target` or `Word as glyph -> target`; `opens` is `page` |
+## 12.11 Flows (withdrawn, revision 67)
 
-A press's target is a path (`/orders?tab=pick`), `page` (the object's own page) or an act the lane's
-utility declares. A press MAY name its glyph (revision 33: `Walk as footprints -> /logistics`), a lower-case
-name an app maps to its own drawing; an app that draws presses as glyphs with the word on hover uses it, and
-falls back to its own table for a press that names none. The glyph is carried in the bundle as `glyph` and
-checked nowhere: a name no app knows draws as the word. A package MUST be refused at publish when a lane names a view, filter, value, slot,
-utility or act it doesn't declare, serves an audience wider than its view shows, opens anything but a page,
-or names both a view and a serve (12.8). A lane reads only through its view's served pages (12.6): the
-figure is the index's tally, the cards a page, the history the same view under the `done` pick; it never
-widens what the view shows. A reader that doesn't know the block carries it unchanged (13.5). What a
-lane's card looks like on a screen is the app's; the compass (the positions its parts take) is a
-convention of the app that draws it, not of the language.
+A flow was an objective's line of stops over a package's lanes and forms: its stops and their acts, the cases
+and questions at a link, a closed set, what it holds through its run and when a record has left the line. Its
+stamps and its joins were derived from its lanes, never declared. Like a lane it held no value. Since revision
+67 it is no member this specification names, on the same three terms as a lane (12.10): `flow:` is refused, a
+reader writes `cfu:flow: pullPackShip /2027-01-04` under its own prefix and reads, checks and derives from the
+lines itself, and a bundle or a chain from before still reads with its flows read by nothing.
 
-**A lane by its step (revision 34).** A lane said by `pick` and `done` holds the records in one state and
-hands them on to the lane that picks that state next. A lane said by `step` knows no other lane: it holds
-the records its view serves that lack the step's mark and are marked on none of its `until`s, read as any
-lane is (the index's tally under `open` on the step's filter and on each `until`'s; a page of the view; the
-history the same view under the step's `done`). So a record stands in every lane whose mark it lacks, at
-once, and a step never done holds nothing up: `until` is how a lane says what it needs, that the thing
-exists and is not finished. A package MUST be refused at publish when a `step` or an `until` is not a
-`marked` filter of the lane's view, when a lane names a `step` beside a `pick` or a `done`, or an `until`
-without a `step`.
+What stays the vocabulary's: an act (chapter 15) and what it writes when it lands; a filter over a mark (12.3),
+which a reader's step lane may stand on; and `edit flows` as a menu item's target (14.6), a gate a reader's
+designer may stand behind.
 
-**Entering a step (revision 38).** A step lane as revision 34 has it fits a record that is on its track from
-birth: it waits from the moment it exists. Some records enter a track later (a thing counted only once its
-group's count has begun). A step lane MAY say `after`: one or more of the view's `marked` filters, and a
-record waits in the lane only once it is marked on each. The lane is read as before with one pick more per
-`after`: the index's tally and the view's page under `open` on the step's filter and each `until`'s, and
-under `done` on each `after`'s; its history is the step's `done` as it was. A package MUST be refused at
-publish when an `after` is not a `marked` filter of the lane's view, stands without a `step`, names the
-lane's own step, or names a filter the lane also names as an `until`. A reader that knew revision 37 refuses
-the lane for a setting it does not know (12.8).
+## 12.12 Prints (withdrawn, revision 67)
 
-A lane without a `pick` or a `step` is a **list** (revision 17): it holds the records of a kind that wait in no state
-(the place's locations, its organizations, its pages), every record its view serves in the view's order.
-Its figure is the view's tally, it has no `done` and so no history, and nothing in it is work waiting: an
-app draws a list where the place keeps the kind, never among the rows of what wants attention, and never
-counts it toward what is waiting. A package MUST be refused at publish when a lane without a `pick`
-names a `done`.
-
-## 12.11 Flows
-
-A **flow** is an objective's line of stops: the lanes and blocks a record walks, in order, from the thing's
-making to its being done (a unit from its making to its label; an order from paid to shipped). A lane is
-a stop that holds records in a state; a block is a form (a make form, or an act's) that moves them. A flow
-is declared by the package whose lanes and forms it walks, belongs to a utility and is served like a lane.
-The app draws it at a room's head, its stops as a strip, and lets a person follow the queue (empty one
-stop for every record) or the card (walk one record down the line); the engine reads, checks and carries
-it.
-
-```crubal
-flow: pickPackShip /2026-12-20
-  label: Pick, pack, ship
-  utility: orders
-  follow: queue
-  serves: owner, fulfiller(ship)
-  stops:
-    ordersToPick -> pick
-    ordersToPack -> pack
-    ordersToShip -> ship
-  done: orderState = shipped
-
-flow: unitizer /2026-12-20
-  label: Unitizer
-  utility: bench
-  follow: card
-  serves: owner, bencher
-  stops:
-    unitizer of product
-    unitsToFile -> file
-    unitsToLabel -> label
-  done: filingState = labelled
-```
-
-| Setting | Holds |
-|---|---|
-| `flow` | its name (a lower-case word) and dated version; a member like a lane, listed in `members` |
-| `label` | its word on a screen |
-| `utility` | the utility of this package whose acts its stops may name |
-| `follow` | `queue` or `card`: how a new person walks it; a person's own choice stands over it; `queue` unless said |
-| `serves` | whom the line is for, as a lane's `serves` |
-| `context` | kinds of this package the flow holds through its run, asked once when it is walked and kept per person (a station, a location); the app draws them at the head and hands them to every stop's act (revision 23) |
-| `replaces` | a flow this one stands in for (revision 23): where the named flow would have been served, this one is; the named flow returns when this one goes; a flow a place draws from a preset names the preset |
-| `stops` | one line per stop, in walking order: `<lane> -> <act>` is a lane of this package with the act of the utility that moves a card on; `<lane>` alone is a lane whose cards move by their own presses; a list (a lane with no `pick` and no `step`, 12.10) is a stop only as `<lane> -> <act>` (revision 37); `<form> of <level>` is a block, a form of this package making or acting on a record of that level (the record of the stop before, when it has one); a block may end `with <facet> = <value>, …` (revision 36): the values its form opens with, set and locked |
-| `done` | `filter = value`: the state a record leaves the line in: the last lane stop's done, or its pick when that lane holds what is finished (revision 22); or (revision 34) a `marked` filter alone: a record marked on it has left the line |
-
-A package MUST be refused at publish when a flow names a utility it doesn't declare, a stop that is
-neither a lane nor a form of the package, an act its utility lacks, a level its kinds lack, a `with` on a
-stop that is not a block or naming a facet that is not declared or one facet twice (revision 36), a done that
-is not a declared filter with a real value, a context that is not a kind or level of the package, or itself
-as what it replaces (12.8); a `replaces` naming a flow not in force at a place is carried and stands in for
-nothing there. A package that extends others may walk the lanes and forms of the packages it extends and name
-their utility, presets and filters (revision 23: a place's own package carries the flow it drew from a
-preset); what the file-local check cannot see, it leaves to the check of the packages in force together (11.4,
-at install), which refuses as the publish would have. A flow adds nothing to what its lanes show: a
-person sees the stops whose lanes they are served, and a block only where the form's `who` admits them.
-Where a block's form is pressed is the app's (a generic make screen, a path of its own); what a flow
-looks like is the app's; the order of the stops is the package's. A reader that doesn't know the block
-carries it unchanged (13.5).
-
-**The stamps (revision 22).** A flow declares no transitions: its lanes already say what moves. A lane
-stop's `done` is the stamp its act leaves: when the act named on the stop (or, on a stop with no act, the
-card's own press) lands on a record the lane holds, the record takes the done's value on its filter's
-facet, written as the act's last write under the act's own source. A block stop's stamp is the next lane
-stop's `pick`: the form's record is made, or moved, into the state that lane holds. When an act lands is
-the utility's: a filing lands when its form is kept, a printing when the printer reports. Nothing watches
-a record for the state to change; a stop stamps when it is told the act landed. A reader derives the
-stamps from the stops; they are never written in the text and never published.
-
-**Locked values (revision 36).** A block stop may end `with <facet> = <value>, …`: the form of that stop
-opens with each named facet holding that value, and the person walking cannot change it there. It is how one
-form serves several lines of work (an offer form with `channel = ebay` in the flow that lists on eBay), and
-how a place draws its own such flow in a designer without a second form. The value is written as the form's
-own write, under the form's source, and is checked as any value the form keeps (4, 7); a lock is not a
-rule: the same form opened elsewhere asks the facet as it always did. A reader derives nothing from it.
-
-**The chain (revision 22).** Two lane stops that follow one another chain: the first's `done` is a state
-(not `viewed`) and it is the second's `pick`, filter and value. A lane with no `pick` (a list, 12.10) holds
-no state, and is a stop only with an act (list stops, below). A block stop between two lanes leaves the chain as it is: the lanes chain across
-it, and the block stamps the second's pick. The flow's `done` is the last lane stop's `done` when that is a
-state, else its `pick` (an end stop holding what is finished). A package MUST be refused at publish when a
-flow's done is not its last lane's. Two lane stops that do not chain were refused as a gap until revision 40
-(links and their joins, below): the join is now read, and a record simply does not pass there. A flow
-arranged from lanes a package already walks between needs nothing more to move its records on.
-
-**Step stops (revision 34).** A stop whose lane names a `step` chains with nothing. Step stops stand in any
-order, any may be left out, and one lane may be a stop of several flows; a flow is never refused for their
-order or their number, so a place's own flow (revision 23) arranges a preset's step stops as it likes. State
-stops still chain among themselves, and a step stop between two of them leaves their chain as it is. A step
-stop's stamp is its mark: when the stop's act lands and has not written the mark itself, the stamp writes
-`now` on a date and `yes` on a yes-no; a link mark is never stamped, since the act sets it (the container it
-found or made), and an act that lands without setting it has not done the step. A block stop before a step
-stop stamps nothing. A flow's `done` naming a marked filter alone is checked against no lane.
-
-**List stops (revision 37).** Some work is an open set: every record of a kind may be touched, one at a
-time, and touching it does not take it off the list (a thing moved from one group to another). A list (12.10)
-is a stop of a flow when the stop names an act, `<lane> -> <act>`: the act is the whole of the work, and
-nothing is left behind for the lane to hold. A list stop chains with nothing and stamps nothing: the state
-stops chain across it as across a step stop, a block stop before it stamps nothing, and a flow whose last
-lane stop is a list has its `done` checked against no lane. A package MUST be refused at publish when a list
-is a stop with no act; the refusal says so. A reader that knew revision 36 refuses such a flow as it refused
-every list stop.
-
-**Links and their joins (revision 40).** A lane stop is a **link**: a lane, the records there to act on, and
-the stamp its act leaves. A flow is links in an order, and how two that follow one another join is read from
-them, never declared and never required:
-
-- **A record passes** where the first's `done` is a state and is the second's `pick`, filter and value, or
-  where the second is a step lane that waits `after` the first's step: what the first stamps is what the
-  second holds.
-- **Nothing passes** otherwise. The two stand together by what the flow holds, its `context` (the container a
-  count is of: the containers to start, the units expected, the containers to finish, each a link on its own
-  level), or by their order alone (a routine of unconnected work).
-
-So a flow's links may be lanes of different levels, in any order, and one lane may be a link of several
-flows. A reader gives the joins (`passes` or not, per pair) to whoever draws the flow; what a join that
-passes nothing looks like, and whether it is worth a word to the person arranging it, is the app's. A package
-is no longer refused for two lane stops that do not chain: revision 22's refusal of a gap is withdrawn, and a
-reader that knew revision 39 refuses such a flow where this one carries it. Each link still stamps as it
-would anywhere (the stamps, above). The flow's `done`, where one is written, is still its last lane stop's.
-
-**A closed set (revision 42).** A flow whose list is fixed at its start and judged at its finish says so:
-`closed: <start stop> to <finish stop> over <rest stop>`, with `cancel <act>` after it or not. The start and
-the finish are lane stops of the flow, each with an act (a stamp); the rest is the lane stop whose list is
-what the finish judges; the three are different stops and the start stands before the finish; the cancel is
-an act of the flow's utility. A package MUST be refused otherwise. The engine reads, checks, carries and
-prints it and does nothing more: what the start takes and the finish judges is the acts' own (15.2). It is
-there so a reader, a designer or a screen can say what the flow is: that leaving it is not finishing it,
-which list is the rest, and how much of it is left.
-
-**A link's cases (revision 41).** A record touched at a link is usually stamped. A link may say what else it
-knows, on lines beneath its stop, so that what a touch can do there is read from the flow and never lives in
-an app alone:
-
-```crubal
-  stops:
-    unitsExpected -> seen
-      already: ignore
-      stranger: ask
-        yes: Re-file here -> transfer
-        no: Put back
-        or: Quarantine -> quarantine
-      flag pick: ask when any picksToPull where pickUnit = record
-        yes: Pull now -> orders.pull on found, seen
-        no: Leave it -> seen
-```
-
-- **`already: ignore`**: a record that already carries what the link's act would write is passed over with a
-  word, and nothing is written. `already: stamp` (unless said) stamps it again.
-- **`stranger: <answer>`**: a record of the lane's level that is not on the lane as the flow's `context`
-  narrows it (a unit of another container, at a count of this one). One per stop.
-- **`flag <name>: <answer> when any <lane> where <facet> = record`**: the record is the target of a link
-  facet carried by a record on the named lane (a pick waiting to be pulled that names this unit). Several per
-  stop, each with its name; they are asked in the order written, after the stranger.
-
-Each case is a **question with three answers**: `ask` (the person is asked), `yes` or `no` (answered without
-asking). The word written is the default; a place MAY keep its own answer per case, and the app reads it
-over the declared one. Beneath a case stand its presses: one `yes:`, one `no:`, and any number of `or:`,
-each `<word>` or `<word> -> <act>[, <act>…]`. An act is the flow's utility's, or another utility's as
-`<utility>.<act>`; it runs on the record in hand, or, in a flag's press, `on found`: on each record the
-flag's `when` found. The acts run in order and the first refusal stops them. A press with no act does
-nothing: the record is left as it was. A case whose press does not name the link's own act does not stamp.
-
-**The questions a link asks (revision 48).** An act may be given a value by the person pressing it (15.1,
-revision 44). A link says when a touch asks for one, so "one is just seen, several are counted" is read from
-the flow and not from an app:
-
-```crubal
-    unitsExpected -> seen
-      asks count: tally when record.qty > 1 "How many are there?"
-      asks reUp: tally when record.qty <= 0 open 1 "None on hand. How many are there?"
-      offers: tally
-```
-
-- **`asks <name>: <act> when <when> [open <value>] ["words"]`**: where the `when` holds on the record
-  touched, the record is **not** stamped. The app asks for what the act is given, with these words when said
-  (else the given's own), opened on `open` when said (else on the given's `from`), and runs the act with the
-  answer. The asks are read in the order written, after the stranger and the flags, and the first that holds
-  is asked. The `when` is an act's (15.1) and reads only `record.<facet>`, the record touched.
-- **`offers: <act>[, <act>…]`**: once the link's own act has landed on a record, these acts' questions stay
-  at hand for it, opened as they open, so a person who sees more than was expected says so without a second
-  touch. Nothing is asked.
-
-An ask's words may say a value of the record touched, `{record.<facet>}` (revision 51): "{record.qty} are
-expected. How many are there?". `askWords` fills them: a number or a word as written, money and a quantity by
-their amount, nothing where the value is not set. A package MUST be refused at publish when the braces hold
-anything but `record.<facet>` or name a facet the package lacks.
-
-An act is the flow's utility's, or another's as `<utility>.<act>`. An ask does not stamp: what its act writes
-is its own. A package MUST be refused at publish when a stop asks one name twice, says `offers` twice or
-offers nothing, an ask or an offer names an act its utility lacks or a utility not in force, or an ask's
-`when` reads anything but `record.<facet>` or a facet the package lacks. In the JSON form a stop carries
-`"asks": [{"name", "utility", "act", "when", "open", "words"}]` and `"offers": [{"utility", "act"}]`.
-
-The engine reads, checks, carries and prints the cases; the app finds which case a touch meets, asks or
-answers, and runs the presses. A package MUST be refused at publish when a stop with no act carries a case,
-an answer is not `ask`, `yes` or `no`, a case lacks its `yes` or its `no` or offers one word twice, a stop
-has two strangers or names a flag twice, a press names an act its utility lacks or a utility not in force,
-a stranger's press says `on found`, or a flag's `when` names what is not a lane or a
-facet that is not a link. A reader that knew revision 40 refuses the lines beneath a stop.
-
-## 12.12 Prints
-
-A **print** is a label design: how a record of a class or kind prints on a piece of stock. It is a member a
-package carries, like a shape: named, versioned and signed with the package, installed with it, replaced
-by a later package's member of the same name (11.4). A place's own package may declare its own; the prints
-available at a place are its installed packages' prints whose `for:` the place holds.
-
-```crubal
-print: tag
-  label: Unit tag
-  describe: A 2.5 by 1 thermal tag: the id as bars, the SKU and title under them, the price at the right.
-  for: Filed
-  inches: 2.5 1
-  fields:
-    code -> cashierfuId
-    title -> title
-    price -> price
-    shop -> place:name
-  elements:
-    rect 0 0 1 1 fill white
-    barcode 0.06 0.02 0.88 0.68 code
-    text 0.04 0.95 0.067 "{code} | {title}" anchor start weight bold clip 0.04 0.86 0.6 0.12
-    text 0.96 0.95 0.067 price anchor end weight bold
-```
-
-| Setting | Holds |
-|---|---|
-| `print` | its name (a lower-case word); a member, published under `prints` |
-| `label` · `describe` | its words on the screen that offers it |
-| `for` | the class or kind it prints; a record of that class (or of the kind's levels) fills its fields |
-| `inches` | its intrinsic stock, `width height` in inches, both above zero; the art is designed at this aspect |
-| `stretch` | `yes`: on a stock of another aspect the art stretches to fill it; `no` (the default): it keeps its aspect, centred |
-| `fields` | one line per field, `slot -> source`: the source a facet of the dictionary (checked as a shape's slot is, 12.1), `id` (the record's id), or a brand slot of the place that prints: `place:name`, `place:mark`, `place:primary`, `place:accent`, `place:words`; `id` is every print's, declared or not |
-| `elements` | one line per element, drawn in order on the art's normalized boxes |
-
-The elements, each a line of words; a number is a fraction of the art, 0 to 1, horizontal ones of its
-width and vertical ones (and a text's size) of its height:
-
-| Element | Line |
-|---|---|
-| a rectangle | `rect x y w h [fill white\|black\|none] [stroke dots]` |
-| a Code 128 barcode | `barcode x y w h <field> [rotate cw\|ccw] [text]`: the field's value in the bars; `text` prints it under them |
-| a QR code | `qr x y w h <field> [gravity bottom-right\|top-left]`: the field's value encoded; centred unless a gravity is said |
-| a picture | `image x y w h <field>` (revision 28): the field's value an image's address (the place's mark, `place:mark`, or an image facet); drawn to fit the box keeping its aspect, centred; a thermal lane prints it as a bitmap, dark where the picture is dark, and prints nothing where it cannot read the picture |
-| a line of text | `text x y size <field \| "words">` then any of `anchor start\|middle\|end`, `weight bold`, `clip x y w h`, `rotate cw\|ccw\|180`, `lines n` (revision 27): `x y` the anchor's point, `size` the font's height; a quoted literal may hold `{field}` places; with `lines`, from 2 to 9, the words wrap into that many lines of the font's height stacked down from `y`, within the clip's width when there is one, the last line cut with an ellipsis |
-
-A package MUST be refused at publish when a print says no `for:`, names a `for:` that is neither a class nor a
-kind, names no inches or inches that are not two numbers above zero, declares a field whose source is not a
-facet, `id` or a brand slot, names a field twice, draws nothing, draws an element of another type (a rect, a barcode, a qr, a text, an image) or with a
-number outside 0 to 1, or draws a field it did not declare. The engine carries a print and checks nothing
-of how it prints: resolving the art to a stock (letterboxed or stretched, rotated when the stock is
-portrait), the renders (a page for a driver, ZPL for a thermal printer, a bitmap) and the printers are the
-app's, and so is what `place:mark` draws. A reader that doesn't know the print carries it unchanged (13.5).
-
+A print was a label design: what class or kind it prints, its stock in inches, its fields and its elements on
+the art's normalized boxes. It held no value, and the engine drew nothing. Since revision 67 it is no member
+this specification names, on the same three terms as a lane (12.10): `print:` is refused, a reader writes
+`cfu:print: tag /2026-12-31` under its own prefix and reads and checks the lines itself, and a bundle or a
+chain from before still reads with its prints read by nothing. A facet that named a print by a definition link
+(`&def:print`) holds its name as text where its reader says so; the sort stays readable (4.2.2).
