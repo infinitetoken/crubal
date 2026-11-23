@@ -570,6 +570,68 @@ migration: base /2026-10-01 -> base /2026-11-01
   assert.equal(border.contracts.size, 0);
 });
 
+test("install: a version replaces its own earlier members whole, so a contract it dropped is not checked against what another package retired since", { skip: !url }, async () => {
+  const toolsV1 = `package: tools /2026-10-01
+  owner: desk.example
+  crubal: 2
+
+kind: item
+  levels: product
+  base: Item
+title$
+snap$
+
+class: Item
+  for: item
+  facets:
+    !title
+    snap
+`;
+  const deskV1 = `package: desk /2026-10-01
+  owner: desk.example
+  crubal: 2
+  extends: desk.example/tools /2026-10-01
+  prefixes:
+    tools: desk.example/tools
+
+note$
+
+contract: photo
+  kind: receive
+  label: Photo
+  for: Item
+  origin: reported
+  reads:
+    snap -> snap
+`;
+  // The tools package retires the key; the desk's next version drops the contract that named it.
+  const toolsV2 = `${toolsV1.replace("tools /2026-10-01", "tools /2026-11-01").replace("snap$\n", "").replace("    snap\n", "")}
+migration: tools /2026-10-01 -> tools /2026-11-01
+  facet: snap
+    review: count of snap over 1000
+`;
+  const deskV2 = `${deskV1.slice(0, deskV1.indexOf("contract: photo")).replace("desk /2026-10-01", "desk /2026-11-01")}
+migration: desk /2026-10-01 -> desk /2026-11-01
+  facet: note
+    review: count of note over 1000
+`;
+  const tools1 = publish(toolsV1, { date: "2026-10-01" }).bundle;
+  const desk1 = publish(deskV1, { date: "2026-10-01" }).bundle;
+  const tools2 = publish(toolsV2, { date: "2026-11-01", previous: tools1 }).bundle;
+  const desk2 = publish(deskV2, { date: "2026-11-01", previous: desk1 }).bundle;
+  const store = new PgStore(pool, "replaces.example", { allowUnsigned: true });
+  await store.install(tools1, undefined, "2026-11-23T10:00:00Z");
+  await store.install(desk1, undefined, "2026-11-23T10:00:01Z");
+  // The tools package first: the order that stranded a place (the desk's contract now names a key nobody defines).
+  await store.install(tools2, undefined, "2026-11-23T10:00:02Z");
+  assert.ok(!(await store.definitions()).dict.facets.has("snap"));
+  // The desk's next version lands all the same: its earlier contract is gone with the version that held it.
+  await store.install(desk2, undefined, "2026-11-23T10:00:03Z");
+  const defs = await store.definitions();
+  assert.ok(!defs.contracts.some((c) => c.name === "photo"));
+  assert.ok(defs.dict.facets.has("note"), "its own definitions stand");
+});
+
 test("a send over the store: started, the adapter, acted or failed, retry from outtake, a late answer, erasure", { skip: !url }, async () => {
   const dict = emptyDictionary();
   readDefinitions(readFileSync(join(corpus, "..", "reader", "_package.crubal"), "utf8"), dict);

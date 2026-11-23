@@ -290,6 +290,16 @@ export class PgStore {
     }
   }
 
+  /** The caller's own copy for an install's trial: `replacing` is the package taking a new version (see definitionsOf). */
+  private async trialDefinitions(replacing?: string): Promise<Parsed> {
+    const client = await this.pool.connect();
+    try {
+      return await definitionsOf(client, this.owner, [], true, replacing);
+    } finally {
+      client.release();
+    }
+  }
+
   /** `fresh` builds the caller's own copy to try a change on (a trial reads onto it and must not touch the shared cache). */
   private async definitionsFrom(client: Client, fresh = false): Promise<Parsed> {
     if (fresh) return definitionsOf(client, this.owner, [], true);
@@ -340,7 +350,10 @@ export class PgStore {
     if (previous === bundle.version) throw new Error(`${bundle.id} /${bundle.version} is already installed`);
     const prevBundle = previous ? ((await this.pool.query("select json from bundles where owner = $1 and package = $2 and version = $3", [this.owner, bundle.id, previous])).rows[0] as { json: JsonObject } | undefined)?.json : undefined;
     // The definitions that would result must pass every publish check before anything is written.
-    const current = await this.definitions(true);
+    // What will stand: every other package in force, and of this package's version in force its definitions
+    // alone. Its other members are replaced whole by the new version, so a contract the new version dropped is
+    // not checked again (it could name a key another package has since retired, and refuse every replacement).
+    const current = await this.trialDefinitions(previous ? String(bundle.id) : undefined);
     const next = readBundleOnto(bundle, current);
     checkAll(next);
     // One dictionary (11.4): a facet another installed package defines with a different type is a collision,
