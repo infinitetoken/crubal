@@ -381,8 +381,8 @@ position among the pinned, so an index orders rows without reading records. In a
 view with its version when it has one (`"dvds /2026-11-01"`), and the first entry of a new version carries
 `"reset": true` (12.6.2).
 
-A display (12.9) is `{"display", "label", "describe", "layout", "slots": [{"from", "to"}], "tokens":
-{name: value}}` under `displays`, its slots in order and its tokens as the words they were written.
+A display has no JSON form since revision 66 (12.9): a bundle carries such a template as a block under its
+reader's prefix (11.10).
 
 A lane (12.10) is `{"lane", "version", "label", (revision 55) "describe", "about", (revision 56) "sort", (revision 57) "owner", "utility", "view" | "serve", "pick": {"filter",
 "value"}, "done": {"filter", "value"} | "viewed", or in their place (revision 34) "step" and "until": [filter…], (revision 38) "after": [filter…], "group" (revision 32), "band", "house", "serves": [{"as", "items"}], "home":
@@ -411,44 +411,20 @@ A package MUST be refused at publish when:
    or whose done is not its last lane's (12.11, revision 22; revision 40: lane stops that do not chain are
    read as a join that passes nothing, never refused), or a list that is a stop with no act (revision 37),
    or whose context is not a kind or level of the package, or that replaces itself (revision 23);
-7. a display names no layout, has a slot line that isn't `shapeSlot -> displaySlot`, or fills one of its
-   slots twice.
+7. (withdrawn, revision 66: a display is no member; 12.9.)
 
-## 12.9 Displays
+## 12.9 Displays (withdrawn, revision 66)
 
-A **display** is a template for a screen over a view: a menu board above a counter, a grid of covers in a
-window, a scoreboard. It is designed once and carried by a package, so a tenant adopts it with the package
-or the utility that brings it, and a deployment's screens list the displays its packages carry.
+A display was a template for a screen over a view: a layout family, slot lines and tokens, carried as a
+member under `displays`. It held no value and the engine computed nothing from it, so it was a reader's word
+and never the vocabulary's. Since revision 66 it is no member this specification names:
 
-```crubal
-display: menu
-  label: Menu
-  describe: Two columns of name and price, for a board above a counter.
-  layout: menu
-  slots:
-    heading -> name
-    price -> price
-    line -> detail
-  tokens:
-    columns: 2
-    every: 30s
-    scale: large
-```
-
-- `layout:` names the **family** the display is built on. A family is a way of drawing that the app
-  knows (the first three are `menu`, `grid` and `board`); the engine stores the word and checks nothing
-  else about it, so a package may name a family a later app will draw.
-- `slots:` lines read `shapeSlot -> displaySlot`: the left side is a slot of the view's shape (12.1), the
-  right a slot the family draws (`name`, `price`, `detail`, `image`, `figure`). A display fills a slot once.
-  A display with no slots takes the family's defaults.
-- `tokens:` are `name: value` words for the app that draws it: columns, the interval between redraws or
-  slides, a type scale, colours. The engine carries them as written and computes nothing from them.
-- `label:` and `describe:` are its words on the screen that offers it.
-- A display is a member like a shape: published in the bundle under `displays` (11.6, 12.7), installed
-  with its package, replaced by a later package's member of the same name (11.4). The host serves nothing
-  new for it: the app reads the definition and draws.
-- A display never widens what a view shows. The screen it draws reads the view at the audience the display
-  is for, which is never wider than the view's own (12.4).
+- A package that writes `display:` is refused, as any block the vocabulary does not name is.
+- A reader that draws such templates writes them under its own prefix (11.9), `cfu:display: menu /2026-12-30`,
+  and reads the lines the block carries. The lines a display took (`label:`, `describe:`, `layout:`,
+  `slots:` of `shapeSlot -> displaySlot`, `tokens:` of `name: value`) are that reader's to keep or change.
+- A bundle or a chain written before revision 66 that holds a display still reads: what it says of one is
+  read by nothing, and retiring one needs no step (10.5).
 
 ## 12.10 Lanes
 
@@ -751,7 +727,7 @@ facet that is not a link. A reader that knew revision 40 refuses the lines benea
 ## 12.12 Prints
 
 A **print** is a label design: how a record of a class or kind prints on a piece of stock. It is a member a
-package carries, like a display: named, versioned and signed with the package, installed with it, replaced
+package carries, like a shape: named, versioned and signed with the package, installed with it, replaced
 by a later package's member of the same name (11.4). A place's own package may declare its own; the prints
 available at a place are its installed packages' prints whose `for:` the place holds.
 

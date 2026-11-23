@@ -16,7 +16,7 @@ import { type PackageInfo, readPackages, type Utility, type Lane, type LanePress
 import { actJson, actText, whenJson, whenText } from "./acts.ts";
 import { readRules, type Rule } from "./rules.ts";
 import { type Contract, type Keys, readContracts, sha256, keyFor } from "./store.ts";
-import { type Display, emptyViewSet, type Filter, type Print, readViews, type Shape, VIEW_SET_KEYS, type View, type ViewSet } from "./views.ts";
+import { emptyViewSet, type Filter, type Print, readViews, type Shape, VIEW_SET_KEYS, type View, type ViewSet } from "./views.ts";
 
 const isObj = (v: Json | undefined): v is JsonObject => typeof v === "object" && v !== null && !Array.isArray(v);
 
@@ -201,11 +201,6 @@ export function recipeJson(r: Recipe): JsonObject {
 
 export function shapeJson(s: Shape): JsonObject {
   return { shape: s.name, slots: s.slots.map((sl) => ({ ...(sl.from.startsWith('"') ? { template: JSON.parse(sl.from) as string } : { from: sl.from }), to: sl.to, ...(sl.required ? { required: true } : {}) })) };
-}
-
-/** A display's JSON form (12.9): the layout family, the slot lines, the tokens as an object, the words. */
-export function displayJson(d: Display): JsonObject {
-  return { display: d.name, ...(d.label ? { label: d.label } : {}), ...(d.describe ? { describe: d.describe } : {}), layout: d.layout, slots: d.slots.map((sl) => ({ from: sl.from, to: sl.to })), ...(d.tokens.size ? { tokens: Object.fromEntries(d.tokens) } : {}) };
 }
 
 /** A print's JSON form (12.12): what it prints, its inches, its fields and its elements as written. */
@@ -400,7 +395,6 @@ export function bundleOf(p: Parsed): JsonObject {
   if (p.rules.length) o.rules = p.rules.map(ruleJson);
   if (p.contracts.length) o.contracts = p.contracts.map(contractJson);
   if (p.views.shapes.size) o.shapes = [...p.views.shapes.values()].map(shapeJson);
-  if (p.views.displays.size) o.displays = [...p.views.displays.values()].map(displayJson);
   if (p.views.prints.size) o.prints = [...p.views.prints.values()].map(printJson);
   if (p.views.filters.size) o.filters = [...p.views.filters.values()].map(filterJson);
   if (p.views.views.size) o.views = [...p.views.views.values()].map(viewJson);
@@ -600,15 +594,6 @@ const printText = (p: JsonObject): string[] => {
   ];
 };
 
-const displayText = (d: JsonObject): string[] => [
-  `display: ${d.display}`,
-  ...(typeof d.label === "string" ? [`  label: ${d.label}`] : []),
-  ...(typeof d.describe === "string" ? [`  describe: ${d.describe}`] : []),
-  `  layout: ${d.layout}`,
-  ...((d.slots as JsonObject[] | undefined)?.length ? ["  slots:", ...(d.slots as JsonObject[]).map((sl) => `    ${sl.from} -> ${sl.to}`)] : []),
-  ...(isObj(d.tokens) && Object.keys(d.tokens).length ? ["  tokens:", ...Object.entries(d.tokens).map(([k, v]) => `    ${k}: ${String(v)}`)] : []),
-];
-
 function filterText(f: JsonObject): string[] {
   const out = [`filter: ${f.filter}`, `  facet: ${f.facet}`];
   if (Array.isArray(f.buckets)) out.push("  buckets:", ...f.buckets.map((b) => { const bb = b as JsonObject; const name = /[\s:]/.test(String(bb.name)) ? JSON.stringify(bb.name) : String(bb.name); return isObj(bb.range) ? `    ${name}: ${bb.range.min}..${bb.range.max}` : `    ${name}: ${list(bb.values as Json[])}`; }));
@@ -663,7 +648,6 @@ export function printBundle(b: JsonObject): string {
   blocks("recipes", recipeText);
   blocks("instructions", instructionsText);
   blocks("shapes", shapeText);
-  blocks("displays", displayText);
   blocks("prints", printText);
   blocks("filters", filterText);
   blocks("views", viewText);

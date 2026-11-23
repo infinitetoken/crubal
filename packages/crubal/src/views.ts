@@ -27,13 +27,6 @@ const rankOf = (a: string) => {
 
 export type Slot = { from: string; to: string; required: boolean; line: number };
 export type Shape = { name: string; slots: Slot[]; line: number };
-/**
- * A display (12.9): a template for a screen over a view, designed once and carried by a package. It names
- * the layout family it is built on, the slots it fills from the view's shape (`shapeSlot -> displaySlot`),
- * its tokens (columns, interval, scale, colours: words the app reads, nothing the engine computes) and the
- * words a screen shows for it.
- */
-export type Display = { name: string; label?: string; describe?: string; layout: string; slots: { from: string; to: string; line: number }[]; tokens: Map<string, string>; line: number };
 /** A box on a print's art, as fractions of its width (x, w) and height (y, h): 0 to 1 (12.12). */
 export type PrintBox = { x: number; y: number; w: number; h: number };
 /** What a print's text draws: a field of the print, or a literal with `{field}` places in it. */
@@ -128,12 +121,12 @@ export type View = {
 export type RoleDef = { name: string; audience: string; see: string[]; seeLine: number; line: number };
 /** A show rule with a `for`: it decides for the records its class, kind or level covers (12.4). */
 export type ShownFor = { for: string; audience: string };
-export type ViewSet = { shapes: Map<string, Shape>; displays: Map<string, Display>; prints: Map<string, Print>; filters: Map<string, Filter>; views: Map<string, View>; roles: Map<string, RoleDef>; shown: Map<string, string>; shownFor: Map<string, ShownFor[]> };
+export type ViewSet = { shapes: Map<string, Shape>; prints: Map<string, Print>; filters: Map<string, Filter>; views: Map<string, View>; roles: Map<string, RoleDef>; shown: Map<string, string>; shownFor: Map<string, ShownFor[]> };
 /** The member maps of a view set, for merging one set onto another. */
-export const VIEW_SET_KEYS = ["shapes", "displays", "prints", "filters", "views", "roles", "shown", "shownFor"] as const;
+export const VIEW_SET_KEYS = ["shapes", "prints", "filters", "views", "roles", "shown", "shownFor"] as const;
 
 /** An empty view set. */
-export const emptyViewSet = (): ViewSet => ({ shapes: new Map(), displays: new Map(), prints: new Map(), filters: new Map(), views: new Map(), roles: new Map(), shown: new Map(), shownFor: new Map() });
+export const emptyViewSet = (): ViewSet => ({ shapes: new Map(), prints: new Map(), filters: new Map(), views: new Map(), roles: new Map(), shown: new Map(), shownFor: new Map() });
 
 /** The words of an element line, a quoted literal kept whole. */
 const printTokens = (text: string): string[] => text.match(/"(?:[^"\\]|\\.)*"|\S+/g) ?? [];
@@ -209,7 +202,7 @@ function readPrintElement(text: string, line: number): PrintElement {
 /** The field names a print's text draws: its field, or the `{field}` places of its literal. */
 export const printSourceFields = (s: PrintSource): string[] => ("field" in s ? [s.field] : [...s.literal.matchAll(/\{(\w+)\}/g)].map((m) => m[1] as string));
 
-/** Read shapes, displays, filters, views (with a body), roles and `shown to` rules. */
+/** Read shapes, filters, views (with a body), roles and `shown to` rules. */
 export function readViews(source: string): ViewSet {
   const set: ViewSet = emptyViewSet();
   for (const n of readTree(source)) {
@@ -226,25 +219,6 @@ export function readViews(source: string): ViewSet {
         return { from, to: l.text.slice(at + 4).trim(), required, line: l.line };
       });
       set.shapes.set(name, { name, slots, line: n.line });
-    } else if (n.key === "display") {
-      // A display (12.9): `layout:` names the family; `slots:` lines read `shapeSlot -> displaySlot`; `tokens:`
-      // lines are `name: value` words for the app; `label:` and `describe:` are its words on a screen.
-      const layout = get("layout")?.value.trim();
-      if (!layout) throw new CrubalError(`the display ${name} names no layout`, n.line);
-      const slots = (get("slots")?.children ?? []).map((l) => {
-        const at = l.text.lastIndexOf(" -> ");
-        if (at < 0) throw new CrubalError(`a display slot is "shapeSlot -> displaySlot": ${l.text}`, l.line);
-        const from = l.text.slice(0, at).trim();
-        const to = l.text.slice(at + 4).trim();
-        if (!from || !to) throw new CrubalError(`a display slot is "shapeSlot -> displaySlot": ${l.text}`, l.line);
-        return { from, to, line: l.line };
-      });
-      const tokens = new Map<string, string>();
-      for (const t of get("tokens")?.children ?? []) {
-        if (t.kind !== "pair" || !t.key) throw new CrubalError(`a display token is "name: value": ${t.text}`, t.line);
-        tokens.set(t.key, t.value.trim());
-      }
-      set.displays.set(name, { name, ...(get("label") ? { label: get("label")?.value.trim() as string } : {}), ...(get("describe") ? { describe: get("describe")?.value.trim() as string } : {}), layout, slots, tokens, line: n.line });
     } else if (n.key === "print") {
       // A print (12.12): `for:` the class or kind it prints; `inches:` its intrinsic stock; `fields:` lines read
       // `slot -> facet` (or `id`, or a brand slot `place:name`); `elements:` lines are its art; `label:` and
@@ -420,14 +394,6 @@ export function checkViews(set: ViewSet, dict: Dictionary): void {
     for (const e of p.elements) {
       const wanted = e.type === "text" ? printSourceFields(e.source) : e.type === "rect" ? [] : [e.field];
       for (const k of wanted) if (!slots.has(k)) throw new CrubalError(`the print ${p.name} draws ${k}, which is none of its fields`, e.line);
-    }
-  }
-  // A display (12.9) fills its slots from a shape's slots; two of its lines may not fill one display slot.
-  for (const d of set.displays.values()) {
-    const filled = new Set<string>();
-    for (const sl of d.slots) {
-      if (filled.has(sl.to)) throw new CrubalError(`the display ${d.name} fills the slot ${sl.to} twice`, sl.line);
-      filled.add(sl.to);
     }
   }
   for (const v of set.views.values()) {
