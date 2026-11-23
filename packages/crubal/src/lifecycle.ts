@@ -10,12 +10,12 @@ import type { Json, JsonObject, Record, Source } from "./model.ts";
 import { MemoryRecords, type RecordSet } from "./records.ts";
 import { readUnder } from "./read-text.ts";
 import { land } from "./store.ts";
-import { aboveBoth, bothKeys, classLines, partThrough, placedKeys, readThrough, wornBy } from "./through.ts";
+import { aboveBoth, bothKeys, classLines, partThrough, placedKeys, readThrough, wearsClass, wornBy } from "./through.ts";
 import { CrubalError, type Node, readTree } from "./tree.ts";
 
 // What a record reads through from above lives in through.ts, which needs nothing from Node; said here too, so
 // whoever read it from this file still does.
-export { aboveBoth, bothKeys, partThrough, placedKeys, readThrough, wornBy };
+export { aboveBoth, bothKeys, partThrough, placedKeys, readThrough, wearsClass, wornBy };
 
 const isObj = (v: Json | undefined): v is JsonObject => typeof v === "object" && v !== null && !Array.isArray(v);
 

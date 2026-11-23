@@ -69,7 +69,7 @@ act: fileByCategory /2026-11-09
 | `utility` | the utility the act belongs to |
 | `replaces` | revision 26: the act of the same utility this one stands in for; a lane's press and a flow's stop naming that act run this one; the utility's `acts:` need not name the replacing act |
 | `label` · `describe` | its words on a screen |
-| `on` | the level it acts on: the record in hand |
+| `on` | the level it acts on: the record in hand; or `wearing <Class>` (revision 65): every record that wears the class |
 | `takes` | revision 35: `share`, where the level's kind declares its quantity (11.2 `shares`): the act may land on fewer than the record holds. The one running it gives a count, all of it when none is given. Fewer **splits** the record (15.2) and the act lands on the share taken |
 | `context` | kinds the act holds beside the record, asked once and kept per person (12.11's `context:`): `context.<kind>` in its lines names the record held, `context.<kind>.<facet>` (revision 26) reads its facet |
 | `needs` | revision 42: one line per need, `<facet>` or `no <facet>` (revision 51: or `<facet> = <value>`, `<facet> != <value>`), with its words in quotes after it or not: what the record in hand must hold, or lack, for the act to land. The facet is the record's own, or `<link facet>.<facet>`, the facet of the record it links to (one hop; the host hands the linked record, and one that links to nothing holds nothing). Read before anything else; the first that fails stops the act before any write, with its words (or "`<facet>` is not set", "`<facet>` is already set") as the reason |
@@ -170,6 +170,13 @@ and values, in the order written) beside the writes; the host MUST make them in 
 refused makes nothing, and MUST give each an id that is the same however often it runs the entry. A made
 record is not yet something the act's other lines may name (a link to it is a later revision's).
 
+**An act on a class (revision 65).** An act named one level, so work that is the same over many kinds (a
+record being claimed by the person working it, whatever it is) had to be declared once per level or written
+outside the language. `on: wearing <Class>` names no level: the act stands on every record that wears the
+class, by its own `wears`, by its kind's base class, or through a class either `uses` (5.5), whatever its kind
+and level. Its needs, sets and thens read the record in hand as any act's do. It takes no share and no route,
+which are a level's. In the bundle `on` carries the same words.
+
 **A value against a word (revision 54).** A `when` compared numbers and amounts, and said `has` or `no`; it
 could not say that a choice stands at one of its values. `<ref> is <word>` holds where the value is that word
 as written, and `<ref> is not <word>` where it is not; a value not set is not the word. So a link may ask
@@ -260,7 +267,7 @@ number is refused with the reason. A record with no value for its quantity is on
 ## 15.3 Well-formed acts
 
 A package MUST be refused at publish when an act names a utility it doesn't declare or one that neither lists it
-among its acts nor lists the act it `replaces`; replaces itself; is `on` no level; names a context that is no kind;
+among its acts nor lists the act it `replaces`; replaces itself; is `on` no level, or (revision 65) `wearing` no class, or wearing one while it takes a share or routes; names a context that is no kind;
 routes over no compound facet, by a column the compound lacks, or over a link facet the level lacks; finds, counts
 or mints a kind the package lacks; counts under a name a find, route or count already bears; picks, orders by, sets, mints or reads a facet the package lacks (a route's
 column the compound's); names a find, route, count or context it did not declare (a then's link and its references among them, revision 39); sets one facet twice; finds one name

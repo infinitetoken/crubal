@@ -24,6 +24,18 @@ export function wornBy(dict: Dictionary, r: Record | undefined): string[] {
   return [...new Set([...(base ? [base] : []), ...(r.wears ?? [])])];
 }
 
+/** Whether a record wears a class: its own, its kind's base, or one of those through what it `uses` (5.5). */
+export function wearsClass(dict: Dictionary, r: Record | undefined, cls: string): boolean {
+  const seen = new Set<string>();
+  const reach = (name: string): boolean => {
+    if (name === cls) return true;
+    if (seen.has(name)) return false;
+    seen.add(name);
+    return (dict.classes.get(name)?.uses ?? []).some(reach);
+  };
+  return wornBy(dict, r).some(reach);
+}
+
 /** The keys the classes named place at a level (5.3.3: a `level::` line declares a vary step beside the kind's own). */
 export function placedKeys(dict: Dictionary, wears: string[], level: string): Set<string> {
   const keys = new Set<string>();

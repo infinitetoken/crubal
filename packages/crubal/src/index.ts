@@ -24,7 +24,7 @@ export { AUDIENCES, checkViews, emptyViewSet, MARK_DONE, MARK_OPEN, partitionOf,
 export { applyEntry, diffWrites, differs, emptyState, Journal, rebuild, recordAt, redactable, redactableWrite, redactWrite, stateJson, type Draft, type Entry, type State, type Write } from "./log.ts";
 export { MemoryRecords, type RecordSet } from "./records.ts";
 export { arrive, decide, surviving, type Arrival, type ArrivalStore } from "./arrival.ts";
-export { aboveBoth, apply, archive, attach, bothKeys, detach, effective, emptyStore, foldUp, heldOverKeys, issue, issuersFor, merge, ownedKeys, partThrough, pending, placedKeys, readThrough, wornBy, readInstructionBlocks, unarchive, type Instruction, type Records, type Store } from "./lifecycle.ts";
+export { aboveBoth, apply, archive, attach, bothKeys, detach, effective, emptyStore, foldUp, heldOverKeys, issue, issuersFor, merge, ownedKeys, partThrough, pending, placedKeys, readThrough, wearsClass, wornBy, readInstructionBlocks, unarchive, type Instruction, type Records, type Store } from "./lifecycle.ts";
 export { addressPath, holdText, readHold, SURFACE_VERBS, surfaceAnswer, surfaceOf, type SurfaceAnswer, type SurfaceLine, type SurfaceNode, type SurfaceVerb } from "./surface.ts";
 export { Access, checkPermissions, followersOn, foreign, MODES, readAccess, VERBS, type Edge, type Effective, type MenuItem, type Mode, type Permissions, type Preset } from "./access.ts";
 export { isSchedule, nextTick, readSchedule, ticksDue, type Schedule } from "./schedule.ts";
@@ -32,5 +32,5 @@ export { bundleHash, bundleOf, classJson, classLineJson, contractJson, emptyPars
 export { classify, publish, type Change, type PublishOptions } from "./publish.ts";
 export { compareVersions, latestVersion, nextVersion } from "./versions.ts";
 export { formOf, type FormOptions } from "./forms.ts";
-export { type Act, type ActFind, type ActAlso, type ActRun, firstOf, type ActCond, readWhen, whenHolds, type ActGiven, type ActInput, type ActMake, type ActSum, type ActWhen, type ActNeed, type ActRecord, type ActRef, type ActRoute, type ActSet, type ActTells, type ActWrites, type ActCount, type Routed, actJson, actText, actWrites, givenOf, markFacets, shareOf, checkActList, findPicksOf, mintValuesOf, nextInSeries, readAct, routeCountPicksOf, routeOf, routeRowsOf, tellsValuesOf } from "./acts.ts";
+export { actClassOf, type Act, type ActFind, type ActAlso, type ActRun, firstOf, type ActCond, readWhen, whenHolds, type ActGiven, type ActInput, type ActMake, type ActSum, type ActWhen, type ActNeed, type ActRecord, type ActRef, type ActRoute, type ActSet, type ActTells, type ActWrites, type ActCount, type Routed, actJson, actText, actWrites, givenOf, markFacets, shareOf, checkActList, findPicksOf, mintValuesOf, nextInSeries, readAct, routeCountPicksOf, routeOf, routeRowsOf, tellsValuesOf } from "./acts.ts";
 export { finishable, isFinished, listMark, sayFinished, unsayFinished } from "./finished.ts";

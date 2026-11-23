@@ -4,11 +4,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { followersOn } from "../src/access.ts";
-import { type ActRecord, actWrites, findPicksOf, firstOf, givenOf, mintValuesOf, nextInSeries, routeCountPicksOf, routeOf, tellsValuesOf } from "../src/acts.ts";
+import { type ActRecord, actClassOf, actWrites, findPicksOf, firstOf, givenOf, mintValuesOf, nextInSeries, routeCountPicksOf, routeOf, tellsValuesOf } from "../src/acts.ts";
 import type { JsonObject } from "../src/model.ts";
 import { bundleOf, parsePackage, printBundle, readBundle } from "../src/bundle.ts";
 import { serialize } from "../src/canonical.ts";
 import { readDefinitions } from "../src/defs.ts";
+import { wearsClass } from "../src/through.ts";
 import { checkActsInForce, checkPackages, readPackages } from "../src/packages.ts";
 import { publish } from "../src/publish.ts";
 import { CrubalError } from "../src/tree.ts";
@@ -1021,3 +1022,53 @@ test("in force, a telling whose aspect no kind declares is inert, never a refusa
   );
 });
 
+
+// Revision 65: an act may stand on a class. `on: wearing <Class>` names no level: the act is every record's that
+// wears the class, its own, its kind's base, or through what those use.
+const worn = `claimedBy$
+class: Claimed
+  facets:
+    claimedBy
+class: Audit
+  for: station
+  uses: Claimed
+  facets:
+    title
+act: file /2026-11-12
+  utility: bench
+  label: Claim
+  on: wearing Claimed
+  needs:
+    no claimedBy "someone is at this already"
+  set:
+    claimedBy -> now
+`;
+
+test("revision 65: an act on a class stands on every record that wears it; it round-trips; refused on no class, with a share or a route", () => {
+  const [info] = readPackages(feed(worn));
+  const a = info?.acts[0];
+  assert.equal(a?.on, "wearing Claimed");
+  assert.equal(a && actClassOf(a), "Claimed");
+  assert.equal(actClassOf({ on: "unit" }), undefined);
+  checkPackages(feed(worn));
+  const b = bundleOf(parsePackage(feed(worn)));
+  assert.match(printBundle(b), /^  on: wearing Claimed$/m);
+  assert.equal(serialize(bundleOf(readBundle(b))), serialize(b));
+  const dict = readDefinitions(feed(worn));
+  checkActsInForce({ info: { acts: info?.acts ?? [], utilities: info?.utilities ?? [] }, dict });
+  const refused = (from: string, to: string, why: RegExp) =>
+    assert.throws(
+      () => checkPackages(feed(worn.replace(from, to))),
+      (e: unknown) => e instanceof CrubalError && why.test(e.message),
+    );
+  refused("on: wearing Claimed", "on: wearing Held", /wearing Held, which isn't a class/);
+  refused("on: wearing Claimed", "on: wearing", /wearing names one class/);
+  refused("on: wearing Claimed", "on: wearing Claimed\n  takes: share", /a quantity is a level's/);
+  // Worn: by the record itself, by its kind's base class, and through a class either uses.
+  const rec = (kind: string, wears?: string[]) => ({ id: "X-1", kind, level: kind, owner: "shop.example", values: {}, ...(wears ? { wears } : {}) }) as never;
+  assert.equal(wearsClass(dict, rec("post"), "Claimed"), false);
+  assert.equal(wearsClass(dict, rec("post", ["Claimed"]), "Claimed"), true);
+  assert.equal(wearsClass(dict, rec("post", ["Audit"]), "Claimed"), true, "through what a worn class uses");
+  assert.equal(wearsClass(dict, rec("post", ["Audit"]), "Item"), false);
+  assert.equal(wearsClass(dict, rec("item"), "Item"), true, "its kind's base, unlisted");
+});
