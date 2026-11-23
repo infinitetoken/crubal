@@ -260,3 +260,52 @@ rule: many
   assert.deepEqual(got("heavy"), { $qty: "5.5", unit: "kg" });
   assert.equal(got("many"), "11");
 });
+
+// ─── A count of the records that link to a record (6.4, revision 68) ─────────────────────────────────────
+const LINKED = `kind: item
+  levels: unit
+kind: box
+  levels: box
+code$
+grade{mint|used}
+filedIn&box
+label$
+held#
+heldMint#
+`;
+const linkedRule = (then: string) => `${LINKED}rule: boxCounts\n  for: box\n  then: ${then}\n  strength: should\n`;
+
+test("a box counts the units that link to it, with a filter read against each; merged and archived units are not counted", () => {
+  const src = `${linkedRule("held is count of unit linked by filedIn")}rule: boxCountsMint\n  for: box\n  then: heldMint is count of unit linked by filedIn where grade is mint\n  strength: should\n`;
+  const dict = readDefinitions(src);
+  const rules = readRules(src);
+  checkRules(rules, dict);
+  const set = new MemoryRecords();
+  const unit = (id: string, box: string, grade: string, status?: Record["status"]): Record => ({ id, kind: "item", level: "unit", owner: "x", values: { code: id, grade, filedIn: { $link: box } }, ...(status ? { status } : {}) }) as Record;
+  set.set("B-1", { id: "B-1", kind: "box", level: "box", owner: "x", values: { label: "One" } } as Record);
+  set.set("B-2", { id: "B-2", kind: "box", level: "box", owner: "x", values: { label: "Two" } } as Record);
+  set.set("U-1", unit("U-1", "B-1", "used"));
+  set.set("U-2", unit("U-2", "B-1", "mint"));
+  set.set("U-3", unit("U-3", "B-1", "mint", { state: "archived" } as Record["status"]));
+  set.set("U-4", unit("U-4", "B-2", "mint"));
+  const engine = new Engine(dict, rules, () => set);
+  for (const r of set.values()) engine.put(r);
+  const derived = (id: string) => Object.fromEntries(engine.reproduce(id).filter((x) => x.result === "derived").map((x) => [x.address, x.value]));
+  assert.deepEqual(derived("B-1"), { held: "2", heldMint: "1" });
+  assert.deepEqual(derived("B-2"), { held: "1", heldMint: "1" });
+  // What a unit's write concerns: the box it named before and the one it names now.
+  assert.ok(engine.readsLinked);
+  assert.deepEqual(engine.linkTargetsOf(unit("U-1", "B-1", "used"), unit("U-1", "B-2", "used")).sort(), ["B-1", "B-2"]);
+  assert.deepEqual(engine.linkTargetsOf(undefined, set.get("B-1")), [], "a box's own write concerns no other");
+});
+
+test("a count over linking records is refused at publish when it is not a count, names no level, or reads what is not a link", () => {
+  const bad = (then: string, why: RegExp) => {
+    const src = linkedRule(then);
+    assert.throws(() => checkRules(readRules(src), readDefinitions(src)), (e: unknown) => e instanceof CrubalError && why.test(e.message), then);
+  };
+  bad("held is most of unit linked by filedIn", /only a count reads the records that link to one/);
+  bad("held is count of crate linked by filedIn", /crate is not a level/);
+  bad("held is count of unit linked by code", /code is not a link/);
+  bad("held is count of unit linked by nothing", /nothing is not a facet/);
+});

@@ -1189,6 +1189,80 @@ contract: addProduct
     gtin
 `;
 
+const LINKED = `package: stock /2026-11-23
+  owner: linked.example
+  crubal: 2
+
+kind: item
+  levels: unit
+  base: Item
+kind: box
+  levels: box
+  base: Box
+code$
+grade{mint|used}
+filedIn&box
+label$
+held#
+heldNew#
+class: Item
+  for: item
+  facets:
+    code
+    grade
+    filedIn
+class: Box
+  for: box
+  facets:
+    label
+    held
+    heldNew
+
+rule: boxCounts
+  for: box
+  then: held is count of unit linked by filedIn
+  strength: should
+rule: boxCountsNew
+  for: box
+  then: heldNew is count of unit linked by filedIn where grade is mint
+  strength: should
+`;
+
+test("a rule counts the records that link to a record (6.4, revision 68): a box counts the units filed in it, and follows a unit filed, moved, taken out and archived", { skip: !url }, async () => {
+  // Its own schema: the test before this one dropped the schema the pool was pointed at.
+  const dropLinked = await testSchema(pool);
+  const owner = "linked.example";
+  const store = new PgStore(pool, owner, { allowUnsigned: true });
+  await store.install(publish(LINKED, { date: "2026-11-23" }).bundle, undefined, "2026-11-23T09:00:00Z");
+  const src = { "*": { origin: "declared", via: "L-1" } };
+  const put = (r: Record, at: string) => store.commit({ person: owner }, (d) => { d.records.set(r.id, { ...r, sources: src }); }, at);
+  const box = async (id: string) => (await store.state()).records.get(id)?.values as JsonObject;
+  await put({ id: "B-1", kind: "box", level: "box", owner, values: { label: "One" } }, "2026-11-23T09:01:00Z");
+  await put({ id: "B-2", kind: "box", level: "box", owner, values: { label: "Two" } }, "2026-11-23T09:01:30Z");
+  assert.deepEqual([(await box("B-1")).held, (await box("B-1")).heldNew], ["0", "0"], "a box nothing is filed in counts none");
+  const e1 = await put({ id: "U-1", kind: "item", level: "unit", owner, values: { code: "AAA", grade: "used", filedIn: { $link: "B-1" } } }, "2026-11-23T09:02:00Z");
+  assert.deepEqual([(await box("B-1")).held, (await box("B-1")).heldNew], ["1", "0"], "the box counts the unit filed in it");
+  assert.deepEqual((await store.state()).records.get("B-1")?.sources?.held, { origin: "derived", via: "boxCounts" });
+  const writes = (e1?.writes ?? []) as JsonObject[];
+  assert.ok(writes.some((w) => w.record === "B-1" && w.address === "held" && w.value === "1"), "the count rides in the unit's own entry");
+  await put({ id: "U-2", kind: "item", level: "unit", owner, values: { code: "BBB", grade: "mint", filedIn: { $link: "B-1" } } }, "2026-11-23T09:03:00Z");
+  assert.deepEqual([(await box("B-1")).held, (await box("B-1")).heldNew], ["2", "1"], "and the filter reads each unit");
+  // Moved: the box it left and the box it joined are both counted again.
+  const u1 = (await store.state()).records.get("U-1") as Record;
+  await store.commit({ person: owner }, (d) => { d.records.set("U-1", { ...u1, values: { ...u1.values, filedIn: { $link: "B-2" } } }); }, "2026-11-23T09:04:00Z");
+  assert.deepEqual([(await box("B-1")).held, (await box("B-2")).held], ["1", "1"]);
+  // Archived: no longer counted, as a view would not list it.
+  const dictLinked = (await store.definitions()).dict;
+  await store.commit({ person: owner }, (d) => { archive(d as unknown as Store, "U-2", "sold", dictLinked); }, "2026-11-23T09:05:00Z");
+  assert.deepEqual([(await box("B-1")).held, (await box("B-1")).heldNew], ["0", "0"]);
+  // Taken out: the link emptied.
+  const moved = (await store.state()).records.get("U-1") as Record;
+  const { filedIn: _gone, ...rest } = moved.values;
+  await store.commit({ person: owner }, (d) => { d.records.set("U-1", { ...moved, values: rest }); }, "2026-11-23T09:06:00Z");
+  assert.equal((await box("B-2")).held, "0");
+  await dropLinked();
+});
+
 test("arrival on a store that refuses whole reads (engine 0.3.13, the scale rule): a strong key matches, weak keys hold, a new one mints, and none of them asks for the level whole", { skip: !url }, async () => {
   const dropKeyed = await testSchema(pool);
   const store = new PgStore(pool, "keyed.example", { allowUnsigned: true, wholeState: "refuse" });

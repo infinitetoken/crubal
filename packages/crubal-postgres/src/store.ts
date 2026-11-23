@@ -644,6 +644,8 @@ export class PgStore {
     for (const id of changed) {
       land(id);
       if (engine.readsLowerLevels) for (const up of engine.ancestorsOf(id)) land(up);
+      // What the record links to, and linked to before, is counted again (6.4, revision 68).
+      if (engine.readsLinked) for (const to of engine.linkTargetsOf(before.records.get(id), draft.records.get(id))) land(to);
     }
   }
 

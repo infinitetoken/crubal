@@ -156,6 +156,16 @@ contract: aiTitle
 - A rollup over a lower level (`count of unit::cashierfuId`) reads the **active** records below, as views
   do (1.12); merged ones never. A row filter that names `status` reads the archived too: `count of
   unit::cashierfuId where status has` counts a product's units with history included.
+- **A count of the records that link to a record (revision 68).** `count of <level> linked by <facet>` counts
+  the records at that level whose link facet names the record the rule is on: `held is count of unit linked by
+  filedIn` on a box. It is a count and no other combine, in a production (`then`). It reads the **active**
+  records, merged ones never, and the archived only where its `where` names `status`, as a rollup over a lower
+  level does; a `where` is read against each linking record. A record whose link is set, changed or emptied,
+  or that is archived or restored, has the record it named before and the one it names now counted again, in
+  the same entry. Only records of the same owner are counted: a link from another owner's record counts
+  nowhere. The rule reads no key of its own record, so the publish check (6.8) sees no circle in it. Refused
+  at publish: a combine other than `count`, a level that does not exist, a facet that does not exist or is
+  not a link.
 - A production writes only at a level where its key is stored: the top level, or a level where the key
   varies (chapter 1.7). Below that, records read the produced value through, as they read any other.
 - A person who edits a produced value **adopts** it (✎, chapter 8): the value stops following the rule

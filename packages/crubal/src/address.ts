@@ -4,8 +4,9 @@
 // rows by child (`ratings[*].value`). An aggregate combines what an address reads, with an optional row filter.
 import type { Dictionary, Facet } from "./defs.ts";
 
-/** `<combine> of <address>`, with an optional `where <condition>` read against each row or lower record. */
-export const AGGREGATE = /^(join|sum|best|narrow|worst|deduct|replace|keep|count|least|most) of (\S+)(?: where (.+))?$/;
+/** `<combine> of <address>`, with an optional `where <condition>` read against each row or lower record. The
+ * address may be `<level> linked by <field>` (6.4, revision 68): the records at a level whose link names this one. */
+export const AGGREGATE = /^(join|sum|best|narrow|worst|deduct|replace|keep|count|least|most) of (\S+(?: linked by \S+)?)(?: where (.+))?$/;
 
 export function aggregateOf(text: string): { how: string; address: string; where?: string } | null {
   const m = text.match(AGGREGATE);
@@ -16,6 +17,12 @@ export function aggregateOf(text: string): { how: string; address: string; where
 export function levelStep(address: string): { level: string; rest: string } | null {
   const m = address.match(/^(\w+)::(.+)$/);
   return m ? { level: m[1] as string, rest: m[2] as string } : null;
+}
+
+/** `unit linked by filedIn` (revision 68): the level whose records link here, and the link facet they do it by. */
+export function linkedStep(address: string): { level: string; field: string } | null {
+  const m = address.match(/^(\w+) linked by ([\w:]+)$/);
+  return m ? { level: m[1] as string, field: m[2] as string } : null;
 }
 
 /** `parts[*].condition`: the key read on every owned part. */
