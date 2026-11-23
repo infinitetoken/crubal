@@ -4,7 +4,7 @@
 // derived, flagged, incomplete, complete and completeness.
 
 import { isFinished } from "./finished.ts";
-import { aboveBoth, partThrough, placedKeys, readThrough, wornBy } from "./lifecycle.ts";
+import { aboveBoth, partThrough, placedKeys, readThrough, wornBy } from "./through.ts";
 import { type Expr, evaluate, parseCondition, reads, type StateOf } from "./conditions.ts";
 import { aggregateOf, levelStep, rowStep } from "./address.ts";
 import { serialize } from "./canonical.ts";

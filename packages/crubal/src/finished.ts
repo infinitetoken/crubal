@@ -2,10 +2,10 @@
 // never that it ended: a many-valued key or a part slot is open until someone who may edit the record says it
 // is finished. The mark holds what the list was when it was said, so the list is finished only while it is
 // still that list: adding or removing an item unsays it, with no write and no hook to forget.
-import { createHash } from "node:crypto";
 import { serialize } from "./canonical.ts";
 import type { Dictionary } from "./defs.ts";
 import type { Json, JsonObject, Record, Source } from "./model.ts";
+import { sha256Hex } from "./sha256.ts";
 
 const isObj = (v: Json | undefined): v is JsonObject => typeof v === "object" && v !== null && !Array.isArray(v);
 
@@ -27,7 +27,7 @@ function itemsOf(r: Record, address: string, dict: Dictionary): string[] {
 /** What a list is, as one short word: the same items give the same word, in any order. */
 export function listMark(r: Record, address: string, dict: Dictionary): string {
   const items = itemsOf(r, address, dict).sort();
-  return `${items.length}:${createHash("sha256").update(items.join("\n"), "utf8").digest("hex").slice(0, 16)}`;
+  return `${items.length}:${sha256Hex(items.join("\n")).slice(0, 16)}`;
 }
 
 /** Whether an address may be finished: a many-valued facet, or a part slot of a class the record wears. */
