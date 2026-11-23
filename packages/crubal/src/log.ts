@@ -39,6 +39,8 @@ export function emptyState(): State {
 
 // A filter names its facet in a `facet` field, a view its `shape`, a contract its `kind`: the member kinds
 // that carry another kind's word are read first, so `{filter, facet}` is a filter and never a facet.
+// `display` left the vocabulary at 0.4.12 (revision 66) and stays in this list: a chain written before then may
+// hold a define of one, which is keyed as what it was and read by nothing.
 const MEMBERS = ["block", "filter", "view", "contract", "facet", "class", "rule", "kind", "shape", "display", "print", "permissions", "ownership", "units", "utility", "lane", "flow", "act"];
 
 /** The key of a `define` write's member: which kind of member, and its name. */

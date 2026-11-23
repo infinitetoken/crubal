@@ -93,45 +93,30 @@ permissions: b
   assert.deepEqual(base.perms.presets.get("helper")?.items, ["two"]);
 });
 
-test("a display (12.9) round-trips through the bundle with its layout, slots, tokens and words", () => {
-  const src = `package: a.test/d /2026-10-22
+test("a display is no word of the vocabulary (revision 66): refused bare, carried under a prefix, and left out of an older bundle's reading", () => {
+  const src = (word: string) => `package: a.test/d /2026-10-22
   owner: a.test
   crubal: 2
 
 kind: item
   levels: product
 title$
-price#
-shape: card
-  slots:
-    title -> heading
-    price -> price
-display: menu
+${word}
   label: Menu
-  describe: Two columns of name and price.
   layout: menu
-  slots:
-    heading -> name
-    price -> price
   tokens:
     columns: 2
-    every: 30s
-display: bare
-  layout: grid
 `;
-  const b = roundTrip(src, "display");
-  const displays = b.displays as { display: string; layout: string; slots: unknown[]; tokens?: unknown; label?: string }[];
-  assert.equal(displays.length, 2);
-  assert.equal(displays[0]?.display, "menu");
-  assert.equal(displays[0]?.label, "Menu");
-  assert.deepEqual(displays[0]?.slots, [{ from: "heading", to: "name" }, { from: "price", to: "price" }]);
-  assert.deepEqual(displays[0]?.tokens, { columns: "2", every: "30s" });
-  assert.equal(displays[1]?.layout, "grid");
-  assert.equal(displays[1]?.slots.length, 0);
-  assert.equal(displays[1]?.tokens, undefined);
-  // Installed onto a base, the display is a member like a shape.
-  const onto = readBundleOnto(b, emptyParsed());
-  assert.equal(onto.views.displays.get("menu")?.layout, "menu");
+  assert.throws(() => parsePackage(src("display: menu")));
+  const b = bundleOf(parsePackage(src("cfu:display: menu /2026-10-22")));
+  assert.equal(b.displays, undefined);
+  assert.deepEqual(b.blocks, [{ block: "cfu:display/menu", version: "2026-10-22", lines: ["label: Menu", "layout: menu", "tokens:", "  columns: 2"] }]);
+  // A bundle published before the word left still reads: what it says of a display is read by nothing.
+  const { blocks: _gone, ...rest } = b;
+  const older = { ...rest, displays: [{ display: "menu", layout: "menu", slots: [], tokens: { columns: "2" } }] };
+  const onto = readBundleOnto(older, emptyParsed());
+  assert.ok(!("displays" in onto.views));
+  assert.ok(onto.dict.kinds.has("item"));
 });
 
 test("a parts recipe survives the bundle (10.3, 5.6): the step is in the recipe JSON and the printed text, and reads back with its slot, condition and map (2026-10-27)", () => {
