@@ -7,7 +7,7 @@ import { deserialize, serialize as v8serialize } from "node:v8";
 // result, so a definition that breaks the set is refused before it is written.
 
 import { checkActsInForce, checkFlowsInForce, checkPermissions } from "@crubal/engine";
-import { emptyParsed, type Parsed, readBundleOnto } from "@crubal/engine";
+import { emptyParsed, type Parsed, printBundle, readBundleOnto, readDefinitions } from "@crubal/engine";
 import { checkPackage } from "@crubal/engine";
 import { checkContracts } from "@crubal/engine";
 import type { JsonObject } from "@crubal/engine";
@@ -160,8 +160,15 @@ export function forgetParsedShared(): void {
  * copy of the caller's own, never the shared one: a dry run or an install reads the next bundle onto what it
  * is given, and read onto the shared object that became every store's definitions until the key changed
  * (a dry run run three times reported its recipe three times, 2026-10-22).
+ *
+ * `replacing` names a package about to take a new version (an install's trial): its version in force gives its
+ * definitions alone (facets, classes, kinds, which a recipe and the records still read), and none of its other
+ * members (contracts, rules, views, lanes, acts), which the new version replaces whole. Read with them, a
+ * contract the new version dropped was still checked, against a dictionary another package had since moved on
+ * from, and the package could never be replaced (2026-11-23: a bench whose photo contract named a key the
+ * inventory package had retired refused every later version of itself).
  */
-export async function definitionsOf(client: Client, owner: string, extra: JsonObject[] = [], own = false): Promise<Parsed> {
+export async function definitionsOf(client: Client, owner: string, extra: JsonObject[] = [], own = false, replacing?: string): Promise<Parsed> {
   const installed = (await client.query("select json from installed where owner = $1 order by ord", [owner])).rows as Row[];
   const defs = (await client.query("select json from definitions where owner = $1 order by ord", [owner])).rows as Row[];
   const key = extra.length || own ? undefined : `${installed.map((r) => `${(r.json as JsonObject).package}/${(r.json as JsonObject).version}`).join(",")}|${createHash("sha256").update(JSON.stringify(defs.map((r) => r.json))).digest("hex")}`;
@@ -207,7 +214,8 @@ export async function definitionsOf(client: Client, owner: string, extra: JsonOb
     const w = row.json as JsonObject;
     const bundle = bundles.get(`${String(w.package)}\u0000${String(w.version)}`);
     if (!bundle) throw new Error(`${w.package} /${w.version} is installed but its bundle is missing`);
-    readBundleOnto(bundle, base);
+    if (replacing && String(w.package) === replacing) readDefinitions(printBundle(bundle), base.dict);
+    else readBundleOnto(bundle, base);
   }
   // `extra`: define writes not yet committed, so a trial (store.define) is checked as the package would stand.
   const working = [...defs.map((r) => r.json as JsonObject), ...extra];
