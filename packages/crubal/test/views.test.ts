@@ -194,93 +194,11 @@ test("a display block is no member of a view set: the definitions reader refuses
   assert.throws(() => readDefinitions(src), (e: unknown) => e instanceof CrubalError);
 });
 
-// ─── A print, a label design (12.12; revision 21) ──────────────────────────────────────────────────────
-const printSrc = `
-kind: item
-  levels: product
-title$
-cashierfuId$
-condition{good|fair}
-class: Filed
-  label: Filed
-  for: item
-  facets:
-    title
-    cashierfuId
-    condition
-print: tag
-  label: Unit tag
-  describe: A 2.5 by 1 thermal tag: the id as bars, the title under them.
-  for: Filed
-  inches: 2.5 1
-  fields:
-    code -> cashierfuId
-    title -> title
-    shop -> place:name
-  elements:
-    rect 0 0 1 1 fill white
-    barcode 0.06 0.02 0.88 0.68 code text
-    text 0.5 0.95 0.067 "{code} | {title}" anchor middle weight bold clip 0.04 0.86 0.92 0.12
-    text 0.98 0.08 0.05 shop anchor end rotate cw
-    text 0.5 0.3 0.09 title anchor middle clip 0.3 0.01 0.7 0.5 lines 2
-    image 0.8 0.5 0.15 0.3 shop
-print: square
-  for: item
-  inches: 2 2
-  stretch: yes
-  elements:
-    qr 0.1 0.1 0.8 0.8 id gravity top-left
-`;
-
-test("a print is read: what it prints, its inches, its fields and its elements, each as written", () => {
-  const set = readViews(printSrc);
-  const p = set.prints.get("tag");
-  assert.ok(p);
-  assert.equal(p.label, "Unit tag");
-  assert.equal(p.for, "Filed");
-  assert.deepEqual(p.inches, { w: 2.5, h: 1 });
-  assert.equal(p.stretch, false);
-  assert.deepEqual(p.fields.map((f) => [f.slot, f.from]), [["code", "cashierfuId"], ["title", "title"], ["shop", "place:name"]]);
-  assert.equal(p.elements.length, 6);
-  const [rect, bars, line, side] = p.elements;
-  assert.deepEqual(rect, { type: "rect", box: { x: 0, y: 0, w: 1, h: 1 }, fill: "white", line: rect?.line });
-  assert.equal(bars?.type, "barcode");
-  if (bars?.type === "barcode") {
-    assert.equal(bars.field, "code");
-    assert.equal(bars.text, true);
-    assert.deepEqual(bars.box, { x: 0.06, y: 0.02, w: 0.88, h: 0.68 });
-  }
-  assert.equal(line?.type, "text");
-  if (line?.type === "text") {
-    assert.deepEqual(line.source, { literal: "{code} | {title}" });
-    assert.equal(line.anchor, "middle");
-    assert.equal(line.weight, "bold");
-    assert.deepEqual(line.clip, { x: 0.04, y: 0.86, w: 0.92, h: 0.12 });
-  }
-  if (side?.type === "text") {
-    assert.deepEqual(side.source, { field: "shop" });
-    assert.equal(side.rotate, "cw");
-  }
-  const square = set.prints.get("square");
-  assert.ok(square);
-  assert.equal(square.stretch, true);
-  assert.equal(square.elements[0]?.type, "qr");
-  checkViews(set, readDefinitions(printSrc));
-});
-
-test("a print without a for or inches, a malformed element, an unknown class, a field that isn't a facet, or an element naming no field is refused", () => {
-  const dict = readDefinitions(printSrc);
-  assert.throws(() => readViews("print: x\n  inches: 2 1\n  elements:\n    rect 0 0 1 1\n"), (e: unknown) => e instanceof CrubalError && /says no for/.test(e.message));
-  assert.throws(() => readViews("print: x\n  for: Filed\n  inches: 2\n  elements:\n    rect 0 0 1 1\n"), (e: unknown) => e instanceof CrubalError && /width height/.test(e.message));
-  assert.throws(() => readViews("print: x\n  for: Filed\n  inches: 2 1\n  elements:\n    circle 0 0 1 1\n"), (e: unknown) => e instanceof CrubalError && /a rect, a barcode, a qr, a text or an image/.test(e.message));
-  assert.throws(() => readViews("print: x\n  for: Filed\n  inches: 2 1\n  elements:\n    rect 0 0 1 2\n"), (e: unknown) => e instanceof CrubalError && /fraction of the art/.test(e.message));
-  assert.throws(() => readViews("print: x\n  for: Filed\n  inches: 2 1\n"), (e: unknown) => e instanceof CrubalError && /draws nothing/.test(e.message));
-  assert.throws(() => checkViews(readViews("print: x\n  for: Nothing\n  inches: 2 1\n  elements:\n    rect 0 0 1 1\n"), dict), (e: unknown) => e instanceof CrubalError && /neither a class nor a kind/.test(e.message));
-  assert.throws(() => checkViews(readViews("print: x\n  for: Filed\n  inches: 2 1\n  fields:\n    a -> nothingHere\n  elements:\n    rect 0 0 1 1\n"), dict), (e: unknown) => e instanceof CrubalError && /isn't a facet/.test(e.message));
-  assert.throws(() => checkViews(readViews("print: x\n  for: Filed\n  inches: 2 1\n  fields:\n    a -> place:logo\n  elements:\n    rect 0 0 1 1\n"), dict), (e: unknown) => e instanceof CrubalError && /brand slot/.test(e.message));
-  assert.throws(() => checkViews(readViews("print: x\n  for: Filed\n  inches: 2 1\n  elements:\n    barcode 0 0 1 1 code\n"), dict), (e: unknown) => e instanceof CrubalError && /draws code, which is none of its fields/.test(e.message));
-  // `id` is every print's, declared or not.
-  checkViews(readViews("print: x\n  for: Filed\n  inches: 2 1\n  elements:\n    qr 0 0 1 1 id\n"), dict);
+// ─── A print: no word of the vocabulary since revision 67 (a label design is the reader's own, 11.9) ───
+test("a print block is no member of a view set: the definitions reader refuses it, as any block it does not name", () => {
+  const src = "kind: item\n  levels: product\ntitle$\nprint: tag\n  for: item\n  inches: 2 1\n";
+  assert.ok(!("prints" in readViews(src)));
+  assert.throws(() => readDefinitions(src), (e: unknown) => e instanceof CrubalError);
 });
 
 // ─── A view partitioned by a link facet (12.2, 14.10; revision 11) ─────────────────────────────────────
@@ -332,18 +250,3 @@ test("revision 11: a linked partition names a link facet; the row carries whom i
 });
 
 
-test("revision 27: a text's lines, 2 to 9, wraps the words; one line, or ten, is refused", () => {
-  const p = readViews(printSrc).prints.get("tag");
-  const wrapped = p?.elements.find((e) => e.type === "text" && e.lines);
-  assert.equal(wrapped && wrapped.type === "text" ? wrapped.lines : undefined, 2);
-  assert.throws(() => readViews(printSrc.replace("lines 2", "lines 1")), /lines is a count from 2 to 9, not 1/);
-  assert.throws(() => readViews(printSrc.replace("lines 2", "lines ten")), /lines is a count from 2 to 9, not ten/);
-});
-
-test("revision 28: an image element, the field's picture fit within its box; one with options or without a field is refused", () => {
-  const p = readViews(printSrc).prints.get("tag");
-  const img = p?.elements.find((e) => e.type === "image");
-  assert.deepEqual(img && img.type === "image" ? { box: img.box, field: img.field } : undefined, { box: { x: 0.8, y: 0.5, w: 0.15, h: 0.3 }, field: "shop" });
-  assert.throws(() => readViews(printSrc.replace("image 0.8 0.5 0.15 0.3 shop", "image 0.8 0.5 0.15 0.3")), /an image is "image x y w h <field>"/);
-  assert.throws(() => readViews(printSrc.replace("image 0.8 0.5 0.15 0.3 shop", "image 0.8 0.5 0.15 0.3 shop gravity top-left")), /takes no options/);
-});

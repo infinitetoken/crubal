@@ -38,7 +38,7 @@ package: me /2026-10-13
 | `terms` | how each audience may use what it's shown: `public: search yes, answer yes, train no` (chapter 12.5.1) |
 
 The rest of the package is its member files: `facet:`, `class:`, `rule:`, `contract:`, `kind:`, `view:`,
-`shape:`, `print:`, `filter:`, `role:`, `lane:`, `flow:` (chapter 12), `migration:`, `permissions:` and `ownership:`
+`shape:`, `filter:`, `role:` (chapter 12), `migration:`, `permissions:` and `ownership:`
 (chapter 14) and `utility:` blocks, in any number of files. A package MAY also publish **reference records** (data files in
 the text form, chapter 2) that others read but don't own copies of: the units table is one.
 
@@ -68,24 +68,12 @@ utility: orders /2026-10-16
 | `setup` | what a deployment provides before it runs: `connection <name>` (a credential the host holds, chapter 7.6) and `setting <facet>` (a value on the deployment's own record) |
 | `mark` (revision 13) | the utility's look wherever it shows: a glyph and a hue, `mark: <glyph> <hue>`. The glyph is a lower-case word the mounting app's kit draws (an unknown one is drawn as the app's default); the hue is one of eight words, `amber`, `blue`, `violet`, `slate`, `teal`, `plum`, `coral`, `olive`, which the app maps to its own colors in light and dark. A utility without a mark has none |
 
-**A group (revision 57).** A package MAY declare a group once, in a block of its own, so the word, the owner
-and the place in the order are said in one place and not in each app that draws it:
-
-```
-group: Org
-  label: Your place
-  owner: place
-  order: 3
-```
-
-`group` is the word utilities name it by (`group: Org` on a utility); `label` is the word people see;
-`owner` is one lower-case word, read as a utility's is; `order` is a whole number, the group's place among
-the groups, lowest first. Each is optional. A group is no member: it has no version and is not listed in
-`members`; the bundle carries it under `groups` as `{"group", "label", "owner", "order"}`, `order` as a
-string like every number. The engine judges only the block's shape: refused at reading are a group with
-no word, a setting it does not have, an owner that is not one word, an order that is not a whole number,
-and one group twice in a package. A utility MAY name a group no package declares, as before; where two
-installed packages declare the same group, the one read later stands.
+**A group (revision 57; withdrawn as a block, revision 67).** A utility names the group it stands in by a
+word (`group: Org`), which the engine carries and judges only as a word. The block that declared a group once
+(its label, its owner, its place in the order) was a surface's own and is no block of the vocabulary since
+revision 67: a package that writes `group:` at the top level is refused, and a reader writes it under its own
+prefix (11.9), `cfu:group: Org /2027-01-08`. A bundle from before that holds `groups` still reads, with what
+it says of them read by nothing.
 
 A utility is a member like any other: versioned, listed in `members`, carried in the bundle (11.6). It
 grants nothing: who may use it is still edges (chapter 14). A package MUST be refused at publish when a
@@ -261,7 +249,7 @@ A published version MUST NOT change. A mistake is fixed by a new version.
 ```
 
 The member sections (`kinds`, `facets`, `classes`, `rules`, `contracts`, `views`, `shapes`,
-`prints`, `filters`, `roles`, `permissions`, `ownership`, `recipes`, `groups` (revision 57), `utilities`, `lanes`, `flows`, `blocks` (revision 58, 11.10)) each hold their members'
+`filters`, `roles`, `permissions`, `ownership`, `recipes`, `utilities`, `blocks` (revision 58, 11.10)) each hold their members'
 JSON forms as the chapters define them. A utility with acts carries them as `"acts": ["pick", "pack"]`.
 
 ## 11.7 The home: crubal.com

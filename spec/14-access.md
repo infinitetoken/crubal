@@ -390,6 +390,10 @@ Menu items say what may be done to data. The **surface** is what a package puts 
 utilities (11.1), its flows and their stops (12.11), its lanes and their presses (12.10). A place enumerates
 it from the packages in force, and an edge says which of it its holder sees and runs.
 
+Revision 67: a flow and a lane are no words of the vocabulary (12.10, 12.11), so the tree is the reader's to
+build from what its packages carry under its prefix, by the addresses below. What the engine keeps is the
+line: its two verbs, an address's shape, and how the lines on the way to an address decide.
+
 **Addresses.** Each node of the surface has an address, its names joined by `/`:
 
 | Node | Address | Example |

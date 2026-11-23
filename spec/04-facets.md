@@ -115,7 +115,7 @@ definition (revision 20):
 | `def:utility` | a utility (11.1) |
 | `def:event` | an event a package declares |
 | `def:package` | a package, `owner/name` |
-| `def:lane` | a lane (12.10) |
+| `def:lane` | a lane: a reader's own since revision 67 (12.10); the sort stays, and a `def:print` written before then still reads |
 | `def:form` | a form (7.7) |
 | `def:view` | a view (chapter 12) |
 

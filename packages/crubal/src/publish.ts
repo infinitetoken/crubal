@@ -17,9 +17,9 @@ export type Change = { member: string; kind: "unchanged" | "safe" | "minor" | "b
 
 /** Where a member's JSON lives in a bundle, by its `member:name` key. */
 /** The member kinds that hold no value on any record (10.5, revision 24): retiring one is a safe change. */
-const VALUELESS = new Set(["view", "shape", "filter", "print", "lane", "flow", "act", "block"]);
+const VALUELESS = new Set(["view", "shape", "filter", "act", "block"]);
 
-const SECTIONS: { [member: string]: [string, string] } = { facet: ["facets", "facet"], class: ["classes", "class"], rule: ["rules", "rule"], contract: ["contracts", "contract"], view: ["views", "view"], shape: ["shapes", "shape"], print: ["prints", "print"], filter: ["filters", "filter"], kind: ["kinds", "kind"], utility: ["utilities", "utility"], lane: ["lanes", "lane"], flow: ["flows", "flow"], act: ["acts", "act"], block: ["blocks", "block"] };
+const SECTIONS: { [member: string]: [string, string] } = { facet: ["facets", "facet"], class: ["classes", "class"], rule: ["rules", "rule"], contract: ["contracts", "contract"], view: ["views", "view"], shape: ["shapes", "shape"], filter: ["filters", "filter"], kind: ["kinds", "kind"], utility: ["utilities", "utility"], act: ["acts", "act"], block: ["blocks", "block"] };
 
 function membersOf(b: JsonObject): Map<string, JsonObject> {
   const out = new Map<string, JsonObject>();
@@ -163,8 +163,8 @@ export function classify(previous: JsonObject | undefined, next: JsonObject): Ch
     }
     else out.push({ member: key, kind: "safe", why: ["changed"] });
   }
-  // A member that holds no value retires without a step (10.5, revision 24): a view, shape, filter, display,
-  // print, lane or flow going loses nothing on a record; what still names it, the version's own checks refuse.
+  // A member that holds no value retires without a step (10.5, revision 24): a view, shape or filter
+  // going loses nothing on a record; what still names it, the version's own checks refuse.
   for (const key of was.keys()) if (!now.has(key)) out.push(VALUELESS.has(key.split(":")[0] as string) ? { member: key, kind: "safe", why: ["removed"] } : { member: key, kind: "retired", why: ["removed"], recipe: ["review, move or hand"] });
   return out;
 }

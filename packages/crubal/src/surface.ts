@@ -1,10 +1,10 @@
-// surface.ts: the surface a place's packages declare, and the lines that grant or withhold it (14.14,
-// revision 43). A utility holds its chains (flows) and its lanes; a chain holds its links (stops); a link holds
-// its cases' presses; a lane outside a chain holds its presses. Each has an address, a path of names. A line
-// says see or run of an address, yes or no; the deepest line on the way to an address decides, and a no beats
-// a yes at the same depth. Pure: no store, no caller. Who holds which lines is the edge's (access.ts).
+// surface.ts: the lines that grant or withhold a surface (14.14, revision 43). A surface is a tree of addresses,
+// each a path of names; what stands on it (a utility's chains and lanes, a chain's links, their presses) is the
+// reader's to build from what its packages carry, since a lane and a flow are no words of the vocabulary
+// (revision 67). A line says see or run of an address, yes or no; the deepest line on the way to an address
+// decides, and a no beats a yes at the same depth. Pure: no store, no caller. Who holds which lines is the
+// edge's (access.ts).
 
-import type { Flow, Lane, Utility } from "./packages.ts";
 import { CrubalError } from "./tree.ts";
 
 export const SURFACE_VERBS = ["see", "run"] as const;
@@ -39,53 +39,6 @@ export function readHold(text: string, line?: number): SurfaceLine {
 }
 
 export const holdText = (l: SurfaceLine): string => `${l.no ? "no " : ""}${l.verb} ${l.address}`;
-
-/** The address a utility's member stands at; a flow or a lane that names no utility stands under the place, `/name`. */
-const under = (utility: string | undefined, name: string) => `${utility ?? ""}/${name}`;
-
-/** A case press's name in an address: `yes`, `no`, or `or1`, `or2` in their order. */
-const caseParts = (c: NonNullable<Flow["stops"][number]["cases"]>[number]) => [
-  { key: "yes", press: c.yes },
-  { key: "no", press: c.no },
-  ...c.or.map((press, i) => ({ key: `or${i + 1}`, press })),
-];
-
-/**
- * Every node of the surface the packages in force declare, parents before children. A lane a chain names as a
- * stop is that chain's link and no node besides (a link is a lane and its stamp): its other presses stand
- * beneath the link. A lane in several chains is a link of each.
- */
-export function surfaceOf(info: { utilities?: Utility[]; flows?: Flow[]; lanes?: Lane[] }): SurfaceNode[] {
-  const out: SurfaceNode[] = [];
-  const lanes = info.lanes ?? [];
-  const presses = (l: Lane | undefined, at: string, but?: string): SurfaceNode[] =>
-    [l?.card?.primary, l?.card?.quiet, ...(l?.card?.quick ?? [])].flatMap((p) =>
-      p && /^[A-Za-z][\w-]*$/.test(p.to) && p.to !== "page" && p.to !== but ? [{ address: `${at}/${p.to}`, sort: "press" as const, name: p.to, label: p.word, acts: [p.to] }] : [],
-    );
-  const linked = new Set((info.flows ?? []).flatMap((f) => f.stops.map((s) => s.name)));
-  for (const u of info.utilities ?? []) out.push({ address: u.name, sort: "utility", name: u.name, ...(u.label ? { label: u.label } : {}), serves: u.serves });
-  for (const f of info.flows ?? []) {
-    const at = under(f.utility, f.name);
-    out.push({ address: at, sort: "chain", name: f.name, ...(f.label ? { label: f.label } : {}), serves: f.serves });
-    for (const s of f.stops) {
-      const link = `${at}/${s.name}`;
-      const lane = lanes.find((l) => l.name === s.name);
-      out.push({ address: link, sort: "link", name: s.name, ...(lane?.label ? { label: lane.label } : {}), ...(s.act ? { acts: [s.act] } : {}) });
-      out.push(...presses(lane, link, s.act));
-      for (const c of s.cases ?? []) {
-        const name = c.kind === "stranger" ? "stranger" : (c.name ?? "flag");
-        for (const { key, press } of caseParts(c))
-          if (press.word) out.push({ address: `${link}/${name}/${key}`, sort: "case", name: key, label: press.word, acts: press.runs.map((r) => r.act) });
-      }
-    }
-  }
-  for (const l of lanes) {
-    if (linked.has(l.name)) continue;
-    const at = under(l.utility, l.name);
-    out.push({ address: at, sort: "lane", name: l.name, ...(l.label ? { label: l.label } : {}), serves: l.serves }, ...presses(l, at));
-  }
-  return out;
-}
 
 /** The addresses on the way to one, nearest last: `a/b/c` → `a`, `a/b`, `a/b/c`. */
 export function addressPath(address: string): string[] {

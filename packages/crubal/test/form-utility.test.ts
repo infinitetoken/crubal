@@ -75,7 +75,7 @@ utility: orders /2026-11-05
   acts: pick, pack, ship
   mark: parcel amber
 
-lane: ordersToPick /2026-11-05
+cfu:lane: ordersToPick /2026-11-05
   label: Orders to pick
   utility: orders
   view: desk
@@ -91,7 +91,7 @@ lane: ordersToPick /2026-11-05
     name: buyer
     primary: Pick -> pick
 
-lane: ordersToPack /2026-11-05
+cfu:lane: ordersToPack /2026-11-05
   label: Orders to pack
   utility: orders
   view: desk
