@@ -1263,6 +1263,27 @@ test("a rule counts the records that link to a record (6.4, revision 68): a box 
   await dropLinked();
 });
 
+test("the count is read from the index over values: filing one more unit loads the box, and none of the forty units already in it", { skip: !url }, async () => {
+  const drop = await testSchema(pool);
+  const owner = "plain.example";
+  const store = new PgStore(pool, owner, { allowUnsigned: true, wholeState: "refuse" });
+  // The plain count alone: a count with a filter reads each linking record, as it must.
+  const text = LINKED.replace("linked.example", owner).replace(/rule: boxCountsNew[\s\S]*$/, "");
+  await store.install(publish(text, { date: "2026-11-23" }).bundle, undefined, "2026-11-23T09:00:00Z");
+  const src = { "*": { origin: "declared", via: "L-1" } };
+  const put = (r: Record, at: string) => store.commit({ person: owner }, (d) => { d.records.set(r.id, { ...r, sources: src }); }, at);
+  const unit = (i: number): Record => ({ id: `U-${i}`, kind: "item", level: "unit", owner, values: { code: `C${i}`, grade: "used", filedIn: { $link: "B-1" } } });
+  await put({ id: "B-1", kind: "box", level: "box", owner, values: { label: "One" } }, "2026-11-23T09:01:00Z");
+  for (let i = 1; i <= 40; i++) await put(unit(i), "2026-11-23T09:02:00Z");
+  await put(unit(41), "2026-11-23T09:03:00Z");
+  const loaded = [...(store.trace?.loaded ?? [])].sort();
+  const asked = [...(store.trace?.answered ?? [])];
+  assert.equal((await store.get("B-1"))?.values.held, "41");
+  assert.deepEqual(loaded, ["B-1"], `filing one unit loaded ${loaded.length} records: ${loaded.slice(0, 6).join(", ")}`);
+  assert.ok(asked.some((q) => q.startsWith("ids:unit:filedIn:")), "the count asked for ids");
+  await drop();
+});
+
 test("arrival on a store that refuses whole reads (engine 0.3.13, the scale rule): a strong key matches, weak keys hold, a new one mints, and none of them asks for the level whole", { skip: !url }, async () => {
   const dropKeyed = await testSchema(pool);
   const store = new PgStore(pool, "keyed.example", { allowUnsigned: true, wholeState: "refuse" });

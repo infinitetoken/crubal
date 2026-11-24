@@ -19,6 +19,12 @@ export interface RecordSet extends Map<string, Record> {
   forTarget(name: string): Record[];
   /** The records at a level whose value for a key equals the value (6.6, 9.2a). */
   byKey(key: string, value: Json, level?: string): Record[];
+  /**
+   * The ids of the records at a level that hold any of the values for a key and are neither archived nor
+   * merged (6.4, revision 68: a count of the records that link to one). Ids and no records: a backend answers
+   * from its index over values and reads no record for it.
+   */
+  activeHolding(key: string, values: Json[], level: string): string[];
 }
 
 /**
@@ -81,6 +87,16 @@ export class MemoryRecords extends Map<string, Record> implements RecordSet {
   // record of the catalog on each `is unique` check.
   forTarget(name: string): Record[] {
     return [...this.values()].filter((r) => (r.wears ?? []).includes(name) || r.level === name || r.kind === name);
+  }
+
+  activeHolding(key: string, values: Json[], level: string): string[] {
+    const out = new Set<string>();
+    for (const v of values) {
+      for (const r of MemoryRecords.prototype.byKey.call(this, key, v, level) as Record[]) {
+        if (r.level === level && r.status?.state !== "archived" && r.status?.reason !== "merged") out.add(r.id);
+      }
+    }
+    return [...out];
   }
 
   byKey(key: string, value: Json, level?: string): Record[] {

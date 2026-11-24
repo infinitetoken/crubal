@@ -681,6 +681,10 @@ export class Engine {
     if (linked) {
       // The records that link here (revision 68): counted, with a filter read against each as a lower level's is.
       if (how !== "count") return undefined;
+      // With no filter nothing of a linking record is read: the record set answers with ids, a backend from
+      // its index over values.
+      const set = this.records?.();
+      if (!where && set) return String(set.activeHolding(linked.field, [{ $link: rec.id }, [{ $link: rec.id }]], linked.level).length);
       const namesStatus = where ? reads(where).some((k) => k === "status" || k === "crubal:status") : false;
       const from = this.linkers(rec, linked.level, linked.field, namesStatus);
       const kept = where ? from.filter((d) => evaluate(where, { ...d.values, id: d.id, status: d.status?.state ?? "active", "crubal:status": d.status?.state ?? "active" }, undefined, this.now) === true) : from;

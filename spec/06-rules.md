@@ -163,7 +163,8 @@ contract: aiTitle
   level does; a `where` is read against each linking record. A record whose link is set, changed or emptied,
   or that is archived or restored, has the record it named before and the one it names now counted again, in
   the same entry. Only records of the same owner are counted: a link from another owner's record counts
-  nowhere. The rule reads no key of its own record, so the publish check (6.8) sees no circle in it. Refused
+  nowhere. A count with no `where` reads nothing of a linking record: an implementation SHOULD answer it from
+  an index over values, and read no record for it. The rule reads no key of its own record, so the publish check (6.8) sees no circle in it. Refused
   at publish: a combine other than `count`, a level that does not exist, a facet that does not exist or is
   not a link.
 - A production writes only at a level where its key is stored: the top level, or a level where the key
