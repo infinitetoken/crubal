@@ -1197,6 +1197,21 @@ export class PgStore {
     return installsInForce(await this.installLog());
   }
 
+  /** The signed bundles of the packages in force (read-api.md 3.4), in the order they are in force. */
+  async bundlesInForce(): Promise<{ package: string; version: string; bundle: JsonObject }[]> {
+    const inForce = (await this.installed()).map((i) => ({ package: String(i.package), version: String(i.version) }));
+    if (!inForce.length) return [];
+    const { rows } = await this.pool.query(
+      "select package, version, json from bundles where owner = $1 and (package, version) in (select * from unnest($2::text[], $3::text[]))",
+      [this.owner, inForce.map((i) => i.package), inForce.map((i) => i.version)],
+    );
+    const by = new Map((rows as { package: string; version: string; json: JsonObject }[]).map((r) => [`${r.package} /${r.version}`, r.json]));
+    return inForce.flatMap((i) => {
+      const bundle = by.get(`${i.package} /${i.version}`);
+      return bundle ? [{ ...i, bundle }] : [];
+    });
+  }
+
   /** The install log whole: every version taken and every leaving, in order. */
   async installLog(): Promise<JsonObject[]> {
     const { rows } = await this.pool.query("select json from installed where owner = $1 order by ord", [this.owner]);
@@ -1332,6 +1347,21 @@ export class PgStore {
     const limit = opts.limit ? ` limit ${Math.max(1, Math.floor(opts.limit))}` : "";
     const { rows } = await this.pool.query(`select seq, entry from log where ${conds.join(" and ")} order by seq${opts.newest ? " desc" : ""}${limit}`, params);
     return (rows as { seq: string | number; entry: Entry }[]).map((r) => ({ seq: Number(r.seq), entry: r.entry }));
+  }
+
+  /**
+   * The number of the last entry after `after` (read-api.md 3.3), or undefined when there is none; with
+   * `drains: false`, the last one the drain did not write. Only the number is read: an entry can carry
+   * thousands of writes, and "has anything landed since" should not load one.
+   */
+  async lastSeq(opts: { after?: number; drains?: boolean } = {}): Promise<number | undefined> {
+    const conds = ["owner = $1", "chain = $2"];
+    const params: unknown[] = [this.owner, this.chain];
+    if (opts.after !== undefined) conds.push(`seq > $${params.push(opts.after)}`);
+    if (opts.drains === false) conds.push("coalesce(entry -> 'by' ->> 'migration', '') <> 'drain'");
+    const { rows } = await this.pool.query(`select max(seq) as seq from log where ${conds.join(" and ")}`, params);
+    const v = (rows[0] as { seq: string | number | null } | undefined)?.seq;
+    return v === null || v === undefined ? undefined : Number(v);
   }
 
   /**

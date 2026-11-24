@@ -149,6 +149,9 @@ test("the log: its head, a stretch after a number, newest first, and the drain's
   assert.equal((await store.head()).seq, head.seq + 1);
   const [lastPerson] = await store.log({ newest: true, limit: 1, drains: false });
   assert.equal(lastPerson?.seq, head.seq, "the drain's entry is skipped");
+  assert.equal(await store.lastSeq({ after: head.seq - 1, drains: false }), head.seq, "the last number a person wrote, and no entry read");
+  assert.equal(await store.lastSeq({ after: head.seq, drains: false }), undefined, "none but the drain's since");
+  assert.equal(await store.lastSeq({ after: head.seq }), head.seq + 1);
   const fresh = new PgStore(pool, "nobody.example", { allowUnsigned: true });
   assert.deepEqual(await fresh.head(), { seq: 0, hash: null }, "a chain with no entry");
 });
@@ -168,4 +171,10 @@ test("runs and intakes: filtered, newest run first; an intake without its raw by
   assert.deepEqual(all.map((i) => i.intake), ["I-1", "I-2"], "in the order received");
   assert.equal("raw" in (all[0] as object), false);
   assert.deepEqual((await store.intakes({ for: "U-1" })).map((i) => i.intake), ["I-2"]);
+});
+
+test("the bundles in force: the package installed, with its signed bundle", { skip: !url }, async () => {
+  const inForce = await store.bundlesInForce();
+  assert.deepEqual(inForce.map((b) => `${b.package} /${b.version}`), ["reads.example/reads /2026-11-24"]);
+  assert.equal(inForce[0]?.bundle.id, "reads.example/reads");
 });
