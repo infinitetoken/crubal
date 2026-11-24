@@ -21,6 +21,8 @@ export class Needs {
   readonly absent = new Set<string>();
   /** Every ID loaded, for the trace. */
   readonly loaded = new Set<string>();
+  /** The ids the tables answered an `ids:` question with (the active records holding a value), by the question. */
+  readonly ids = new Map<string, string[]>();
   /** When set, `all()` throws this message instead of asking for the whole catalog (a store with `wholeState: refuse`). */
   refuseAll: string | undefined;
 
@@ -72,6 +74,19 @@ export class WorkingRecords extends MemoryRecords {
   override byKey(key: string, value: Json, level?: string): Record[] {
     this.needs.want(`key:${level ?? ""}:${key}:${serialize(value)}`);
     return super.byKey(key, value, level);
+  }
+
+  /**
+   * The tables answer with ids alone, from the index over values; no record is loaded for the question. What
+   * this run holds is the truth for the records it holds (one filed, moved or archived in the draft), so the
+   * tables' answer stands only for the records the set has not loaded.
+   */
+  override activeHolding(key: string, values: Json[], level: string): string[] {
+    const question = `ids:${level}:${key}:${serialize(values)}`;
+    this.needs.want(question);
+    const out = new Set<string>(super.activeHolding(key, values, level));
+    for (const id of this.needs.ids.get(question) ?? []) if (!Map.prototype.has.call(this, id)) out.add(id);
+    return [...out];
   }
 }
 
@@ -262,6 +277,15 @@ export async function loadNeeds(client: Client, owner: string, needs: Needs, int
       const value = valueParts.join(":");
       // Containment, so the GIN on the values document answers.
       put((await client.query(`${sel}${level ? " and level = $3" : ""} and doc -> 'values' @> $2::jsonb order by ord`, level ? [owner, JSON.stringify({ [facet]: JSON.parse(value) }), level] : [owner, JSON.stringify({ [facet]: JSON.parse(value) })])).rows as Row[]);
+    } else if (kind === "ids") {
+      const [level, facet, ...valueParts] = rest as [string, string, ...string[]];
+      const docs = (JSON.parse(valueParts.join(":")) as Json[]).map((v) => JSON.stringify({ [facet]: v }));
+      // Containment, so the GIN on the values document answers; ids alone, so no document is read out.
+      const { rows } = await client.query(
+        "select id from records where owner = $1 and level = $3 and doc -> 'values' @> any($2::jsonb[]) and coalesce(status ->> 'state', '') <> 'archived' and coalesce(status ->> 'reason', '') <> 'merged' order by ord",
+        [owner, docs, level],
+      );
+      needs.ids.set(key, (rows as Row[]).map((r) => String(r.id)));
     } else if (kind === "binding") {
       const map = into.bindings as WorkingMap<string>;
       if (arg === "*") {

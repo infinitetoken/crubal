@@ -6,7 +6,7 @@
 import { isFinished } from "./finished.ts";
 import { aboveBoth, partThrough, placedKeys, readThrough, wornBy } from "./through.ts";
 import { type Expr, evaluate, parseCondition, reads, type StateOf } from "./conditions.ts";
-import { aggregateOf, levelStep, rowStep } from "./address.ts";
+import { aggregateOf, levelStep, linkedStep, rowStep } from "./address.ts";
 import { serialize } from "./canonical.ts";
 import { type Dictionary, type Facet, unquote } from "./defs.ts";
 import { resolve } from "./dictionary.ts";
@@ -35,6 +35,12 @@ export type Rule = {
 };
 
 const isObj = (v: Json | undefined): v is JsonObject => typeof v === "object" && v !== null && !Array.isArray(v);
+
+/** The ids a link value names: one link, or each of a list's. */
+function linkIds(v: Json | undefined): string[] {
+  const one = (x: Json | undefined) => (isObj(x) && typeof x.$link === "string" ? [x.$link] : []);
+  return Array.isArray(v) ? v.flatMap(one) : one(v);
+}
 
 function production(thenText: string, strength: Strength): Rule["produces"] {
   const m = thenText.match(/^([A-Za-z_][\w:]*) is (.+)$/);
@@ -128,7 +134,9 @@ function readsOf(r: Rule): string[] {
     const address = aggregateOf(r.produces.right)?.address ?? "";
     // Rows of the record's own compound: the rollup reads that compound (the key before `[*]`).
     const rows = address.match(/^(\w+)\[\*\](?:\.(\w+))?$/);
-    keys.push(rows && rows[1] !== "parts" ? (rows[1] as string) : address);
+    // A count of the records that link here (revision 68) reads no key of this record: what it reads is
+    // another record's link, and that record's write is what recounts this one.
+    if (!linkedStep(address)) keys.push(rows && rows[1] !== "parts" ? (rows[1] as string) : address);
   }
   // A read of a lower level is a read of its key, so a rule that produces that key below stands before this
   // one. Not so where the rule reads below the very key it produces above (`images is join of unit::images`,
@@ -164,6 +172,18 @@ export function checkRules(rules: Rule[], dict: Dictionary): void {
   for (const r of rules) {
     const twin = all.find((s) => s.shortcut && s.thenText === r.thenText && s.whenText === r.whenText && s.strength === r.strength);
     if (twin) throw new CrubalError(`${r.name} says the same as ${twin.name.replace(": ", "'s ")} setting`, r.line);
+  }
+  // A count of the records that link here (6.4, revision 68): a count and nothing else, of a level that
+  // exists, by a link facet.
+  for (const r of rules) {
+    const agg = r.produces?.kind === "rollup" ? aggregateOf(r.produces.right) : null;
+    const linked = agg ? linkedStep(agg.address) : null;
+    if (!agg || !linked) continue;
+    if (agg.how !== "count") throw new CrubalError(`${r.name}: only a count reads the records that link to one, not ${agg.how}`, r.line);
+    if (!dict.levels.has(linked.level)) throw new CrubalError(`${r.name}: ${linked.level} is not a level`, r.line);
+    const f = dict.facets.get(linked.field);
+    if (!f) throw new CrubalError(`${r.name}: ${linked.field} is not a facet`, r.line);
+    if (f.type !== "link") throw new CrubalError(`${r.name}: ${linked.field} is not a link`, r.line);
   }
   // Layered: no cycle from what a rule reads to what it produces.
   const producers = all.filter((r) => r.produces);
@@ -275,6 +295,54 @@ export class Engine {
   /** Whether any rollup here reads a lower level (`count of unit::…`): then a child's write concerns its ancestors. */
   get readsLowerLevels(): boolean {
     return this.rules.some((r) => r.produces?.kind === "rollup" && /\b\w+::/.test(r.produces.right));
+  }
+
+  /** The counts here over the records that link to one (`count of unit linked by filedIn`, revision 68). */
+  private get linkedCounts(): { level: string; field: string }[] {
+    const out: { level: string; field: string }[] = [];
+    for (const r of this.rules) {
+      const agg = r.produces?.kind === "rollup" ? aggregateOf(r.produces.right) : null;
+      const linked = agg ? linkedStep(agg.address) : null;
+      if (linked) out.push(linked);
+    }
+    return out;
+  }
+
+  /** Whether any rollup here counts the records that link to one: then a record's write concerns what it links to. */
+  get readsLinked(): boolean {
+    return this.linkedCounts.length > 0;
+  }
+
+  /**
+   * The records a write concerns through a counted link (6.4, revision 68): what the record named before and
+   * what it names now, by each link facet a count reads at its level. A record archived or restored is
+   * counted again where it stands, so both are named whether or not the link moved.
+   */
+  linkTargetsOf(was: Record | undefined, now: Record | undefined): string[] {
+    const out = new Set<string>();
+    for (const { level, field } of this.linkedCounts) {
+      for (const rec of [was, now]) {
+        if (!rec || rec.level !== level) continue;
+        for (const id of linkIds(rec.values[field])) out.add(id);
+      }
+    }
+    return [...out];
+  }
+
+  /** The records at a level whose link facet names the record: merged ones left out always; archived ones unless asked for. */
+  private linkers(rec: Record, level: string, field: string, archivedToo = false): Record[] {
+    const set = this.records?.();
+    const found = set
+      ? [...set.byKey(field, { $link: rec.id }, level), ...set.byKey(field, [{ $link: rec.id }], level)]
+      : [...this.store.values()].map((s) => s.rec);
+    const out = new Map<string, Record>();
+    for (const f of found) {
+      const r = this.store.get(f.id)?.rec ?? f;
+      if (r.level !== level || r.status?.reason === "merged") continue;
+      if (!archivedToo && r.status?.state === "archived") continue;
+      if (linkIds(r.values[field]).includes(rec.id)) out.set(r.id, r);
+    }
+    return [...out.values()];
   }
 
   /** The chain up from a record along `of`, nearest first. */
@@ -609,6 +677,19 @@ export class Engine {
     if (!agg) return undefined;
     const { how, address } = agg;
     const where = agg.where ? parseCondition(agg.where) : null;
+    const linked = linkedStep(address);
+    if (linked) {
+      // The records that link here (revision 68): counted, with a filter read against each as a lower level's is.
+      if (how !== "count") return undefined;
+      // With no filter nothing of a linking record is read: the record set answers with ids, a backend from
+      // its index over values.
+      const set = this.records?.();
+      if (!where && set) return String(set.activeHolding(linked.field, [{ $link: rec.id }, [{ $link: rec.id }]], linked.level).length);
+      const namesStatus = where ? reads(where).some((k) => k === "status" || k === "crubal:status") : false;
+      const from = this.linkers(rec, linked.level, linked.field, namesStatus);
+      const kept = where ? from.filter((d) => evaluate(where, { ...d.values, id: d.id, status: d.status?.state ?? "active", "crubal:status": d.status?.state ?? "active" }, undefined, this.now) === true) : from;
+      return String(kept.length);
+    }
     const lower = levelStep(address);
     const rows = lower ? null : rowStep(address, this.dict);
     const key = lower ? lower.rest : rows ? (rows.child ?? "") : address.replace(/^parts\[\*\]\./, "");

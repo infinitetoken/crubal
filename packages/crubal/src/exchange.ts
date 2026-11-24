@@ -297,6 +297,7 @@ export class Exchange {
     const { held: _was, ...base } = landed as unknown as { held?: unknown } & Record;
     const record = { ...base, values, sources, ...(Object.keys(held).length ? { held } : {}) } as unknown as Record;
     this.engine.put(record);
+    const was = this.records.get(record.id);
     // 6b. What the ancestors derive from below is recomputed now (6.4), nearest first, each landing before
     // the next reads it; the record itself is in the set first, so a rollup over it sees this write.
     if (this.engine.readsLowerLevels) {
@@ -304,15 +305,29 @@ export class Exchange {
       const recomputed = this.reproduceAncestors(record.id);
       if (recomputed.length) summary.recomputed = recomputed;
     }
+    // 6c. What the record links to, and linked to before, is counted again (6.4, revision 68).
+    if (this.engine.readsLinked) {
+      this.records.set(record.id, record);
+      const recounted = this.reproduceEach(this.engine.linkTargetsOf(was, record));
+      if (recounted.length) summary.recomputed = [...new Set([...((summary.recomputed as string[]) ?? []), ...recounted])];
+    }
     return { record, summary };
   }
 
   /** Run the ancestors' productions again after a write below them; the ids whose values changed. */
   reproduceAncestors(id: string): string[] {
+    return this.reproduceEach(this.engine.ancestorsOf(id), true);
+  }
+
+  /** Run the productions again for each record named; the ids whose values changed. A chain stops at a gap. */
+  reproduceEach(ids: string[], chain = false): string[] {
     const changed: string[] = [];
-    for (const upId of this.engine.ancestorsOf(id)) {
+    for (const upId of ids) {
       const up = this.records.get(upId);
-      if (!up) break;
+      if (!up) {
+        if (chain) break;
+        continue;
+      }
       this.engine.put(up);
       const derived = this.engine.reproduce(upId).filter((r) => (r.result === "derived" || r.result === "filled") && r.address && r.value !== undefined && r.rule);
       if (!derived.length) continue;
