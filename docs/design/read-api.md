@@ -199,7 +199,7 @@ Two reads the app's last log and index queries wanted, found moving the app onto
 
 Proved on Postgres 17: the engine's suite 258, the store's 55, the host's 26, all passing.
 
-## 10. Phase 3, designed (2026-11-24): for the operator's rulings
+## 10. Phase 3, designed and ruled (2026-11-24)
 
 Read off the 15 files still on the record for range, search and count reasons, query by query, and off what
 views and the index do today (spec 12; `crubal-host/src/indexer.ts`). Nothing here is built.
@@ -258,7 +258,7 @@ no view spans every level. It keeps its SQL until it is redesigned, or takes a n
 The inventory report (`aggregates.ts` 468-497, 238 s under a walk) is the hardest: it is 3c's rollups plus 3b's
 counts, last.
 
-### 10.4 Rulings asked
+### 10.4 Rulings (2026-11-24, the operator: "I agree with all of this"; all four as recommended)
 
 1. **Narrow ruling 1**: operational reads that must be current go to the store (3a, no spec change); views
    serve the screens (3b). Recommended: yes.
@@ -268,3 +268,5 @@ counts, last.
    filter; reads by id and keyset). Recommended: yes, drafted after 3a ships.
 4. **`facet-edit.ts`** keeps its SQL for now. Recommended: yes; it is the one file left on the record by design
    until the field screen is redesigned.
+
+Next: build 3a as 0.4.17 (the store's `range`, `lacks` and `in`), then move the operational reads.
