@@ -1,6 +1,7 @@
 # A read API over the store
 
-Draft, 2026-11-24. Status: **ruled** (section 7, all four as recommended, 2026-11-24). Nothing here is built.
+Draft, 2026-11-24. Status: **ruled** (section 7, all four as recommended, 2026-11-24). Phase 0 built in the
+cashierfu repository (pull request 29); phase 2 built here as 0.4.15 (section 8).
 
 The One Clean Stack plan, step 4: CashierFu stops running SQL on the engine's tables. Today it does, in 41
 files of its `lib/` and 9 of its scripts (`engine-holding-list.md` line 7 in the cashierfu repository; that
@@ -15,8 +16,10 @@ what order.
 - **The store answers by key, by selection and by condition; the index answers pages, counts and search**
   (`store.md`, point 6 and "Reads"). Every addition below is one indexed query over the store's tables, or a
   declared view served by the index. No addition loads the whole state.
-- **Both backends.** Every new read is implemented by the memory backend too and proved by the corpus, as
-  every store read is today (`store.md`, point 3).
+- **Proved on Postgres.** These are reads of the store's tables, as `get`, `records` and `installed` are; the
+  memory backend has none of them (its whole state is in hand). Each is proved in the Postgres suites
+  (`crubal-postgres/test/read-api.test.ts`, the host suite). Corrected 2026-11-24: the first draft said both
+  backends and the corpus.
 - **Owner-scoped first.** A store is one owner's. Reads across owners are the host's and are few, named and
   separate (phase 5).
 - **The app writes no engine table.** It writes none of records, log or chains today; the few writes it does
@@ -55,19 +58,23 @@ Backward compatible: every call that works today returns the same.
 
 ```ts
 records(where: {
-  level?: string; kind?: string; of?: string; within?: string;
+  level?: string; kind?: string; of?: string | string[]; within?: string | string[];
   ids?: string[];                          // B: a list of ids
   key?: [string, Json];                    // today's one value
   keys?: [string, Json][];                 // D: every one holds (containment, so the GIN answers)
-  links?: { to: string; via?: string[] };  // C: records that link to `to`; `via` defaults to every
-                                           //    link facet the level declares (the 0.4.14 count's query)
+  has?: string[];                          // D: each of these keys holds some value
+  links?: { to: string | string[]; via: string[] };  // C: records whose link names `to`, through the facets
+                                           //    named (the 0.4.14 count's containment; `via` is required)
 }, opts: {
   limit?: number; after?: number; before?: number;  // keyset on `ord`
   newest?: boolean;                                  // A: `ord` descending
   archived?: boolean;
   values?: string[];                                 // only these facets come back in `doc.values`
 }): Promise<Record[]>
+page(where, opts): Promise<{ records: Record[]; next?: number }>  // the cursor for the next page
 ```
+
+`page` was added in the building: a record does not carry its `ord`, so a caller of `records` could not page.
 
 A read joined to an app table becomes two: the store returns ids (or the facets asked), the app joins on its
 side. Where that doubles a hot path (the matcher's "changed since", `matcher.ts:170`), the app keeps a
@@ -81,23 +88,26 @@ counts by a facet's value (a group-by) are the store's or a view's is ruling 1.
 ### 3.3 The log (group H)
 
 ```ts
-head(chain?: string): Promise<{ chain: string; seq: number; hash: string } | undefined>
-entries(opts?: { chain?: string; after?: number; before?: number; limit?: number; newest?: boolean }): Promise<Entry[]>
+head(): Promise<{ seq: number; hash: string | null }>          // the store's chain; seq 0 before any entry
+log(opts?: { after?: number; before?: number; limit?: number; newest?: boolean; drains?: boolean }): Promise<{ seq: number; entry: Entry }[]>
 ```
 
-`entries()` with no options is today's whole log, unchanged.
+`entries()` stays the whole log, unchanged (`verify` reads it). `log` carries each entry's number, which the
+app's cursors need; `drains: false` leaves out the drain's own entries, as two of the app's reads do.
 
 ### 3.4 Packages (group I)
 
-`installed()` stays. The host adds `published(owner, pkg?)`: the versions an owner has published, from
-`host_published`.
+`installed()` stays. The host adds `published({ owner?, package?, ids? }, { latest?, text? })`: the versions
+published, from `host_published`; `latest` keeps each package's latest by the version order (11.8), and `text`
+brings the text and bundle of the versions returned only.
 
 ### 3.5 Keys and queues (groups K and L)
 
-- The host adds `keys(owner)` and `revokeKey(owner, id)`. The app's two deletes (`bench.ts:1876`,
-  `sources.ts:187`) go through it.
-- The store adds `runs({ send?, state?, limit?, newest? })` and `intake({ ... })`. Their exact filters are
-  read off `sends.ts:29` and `vocabulary.ts:34` when they are built.
+- The host adds `keyedCallers(owner)` and `revokeKeysOf(owner, caller)`. The app's two deletes
+  (`bench.ts:1876`, `sources.ts:187`) go through it.
+- The store adds `runs({ contract?, record?, state? }, { limit? })`, newest first, and
+  `intakes({ for?, contract? })`, in the order received and without the raw bytes (from `sends.ts:29` and
+  `vocabulary.ts:34`).
 
 ### 3.6 Counts and search through views (groups E, F, G)
 
@@ -165,3 +175,15 @@ the count reaches zero.
    ported.
 4. **Decision 11 (one shared copy)** decides phase 5. Ruled 2026-11-18 per the holding list; confirmed
    2026-11-24.
+
+## 8. Built: 0.4.15 (2026-11-24)
+
+On the branch `engine/read-api`. Pushing, the pull request and publishing are the operator's.
+
+- `PgStore`: `records` grown and `page` (3.1), `count` (3.2), `head` and `log` (3.3), `runs` and `intakes`
+  (3.5). The types `RecordsWhere` and `RecordsOptions` are exported.
+- `Host`: `published` (3.4), `keyedCallers` and `revokeKeysOf` (3.5). The app's two key deletes are by
+  owner and caller, which `revokeKey(raw)` could not do.
+- Proved on a Postgres 17: the engine's suite 258, the store's 53 (8 of them the read API's), the host's 25
+  (one new, and the published-versions checks inside the publishing test), all passing.
+- No spec revision: nothing in the language changed.
