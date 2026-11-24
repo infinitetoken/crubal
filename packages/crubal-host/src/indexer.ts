@@ -132,6 +132,15 @@ export class Index {
     return out.sort((a, b) => b.head - b.seq - (a.head - a.seq));
   }
 
+  /**
+   * Where an owner's index stands (read-api.md 3.3): the sum of its views' cursors, which only ever advance,
+   * so a page built at one position is behind any later one. 0 for an owner with nothing indexed.
+   */
+  async position(owner: string): Promise<number> {
+    const { rows } = await this.pool.query("select coalesce(sum(seq), 0)::bigint as n from index_cursors where owner = $1", [owner]);
+    return Number((rows[0] as { n: string | number } | undefined)?.n ?? 0);
+  }
+
   /** Apply stream entries to the rows, idempotently by seq (12.6.2): from a store's stream or pushed by a presenter. */
   async ingest(owner: string, view: string, version: string, audience: string, entries: StreamEntry[], from?: number): Promise<number> {
     await this.linkedReady();

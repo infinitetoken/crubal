@@ -1326,3 +1326,10 @@ test("the read API's keys (0.4.15): the callers of an owner holding a key, and e
   assert.equal(rows[0].n, 0);
   assert.equal(typeof a1, "string");
 });
+
+test("the read API's index position (0.4.15): the sum of an owner's view cursors, 0 for none", { skip: !url }, async () => {
+  const index = new Index(pool);
+  await pool.query("insert into index_cursors (owner, view, version, audience, seq) values ('pos.example', 'a', '1', 'public', 7), ('pos.example', 'b', '1', 'staff', 5)");
+  assert.equal(await index.position("pos.example"), 12);
+  assert.equal(await index.position("nobody.example"), 0);
+});
