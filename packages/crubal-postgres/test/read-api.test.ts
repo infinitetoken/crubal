@@ -178,3 +178,19 @@ test("the bundles in force: the package installed, with its signed bundle", { sk
   assert.deepEqual(inForce.map((b) => `${b.package} /${b.version}`), ["reads.example/reads /2026-11-24"]);
   assert.equal(inForce[0]?.bundle.id, "reads.example/reads");
 });
+
+test("logBrief: newest first, each entry's count of writes, the first few, and the records touched", { skip: !url }, async () => {
+  const all = await store.entries();
+  const brief = await store.logBrief({ limit: 3, writes: 1 });
+  assert.equal(brief.length, 3);
+  assert.equal(brief[0]?.seq, (await store.head()).seq, "newest first");
+  const whole = all[(brief[0]?.seq ?? 1) - 1] as { log: string; writes?: unknown[] };
+  assert.equal(brief[0]?.log, whole.log);
+  assert.equal(brief[0]?.count, whole.writes?.length ?? 0);
+  assert.ok((brief[0]?.writes.length ?? 0) <= 1, "only the writes asked for");
+  // The entry that archived U-5 touches U-5.
+  const archived = (await store.logBrief({ limit: 50 })).find((e) => e.records.includes("U-5") && e.count > 0);
+  assert.ok(archived, "the records an entry touches are named");
+  const older = await store.logBrief({ limit: 2, before: brief[0]?.seq });
+  assert.equal(older[0]?.seq, (brief[0]?.seq ?? 0) - 1, "a page before a number");
+});

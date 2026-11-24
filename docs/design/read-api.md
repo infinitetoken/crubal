@@ -187,3 +187,14 @@ On the branch `engine/read-api`. Pushing, the pull request and publishing are th
 - Proved on a Postgres 17: the engine's suite 258, the store's 53 (8 of them the read API's), the host's 25
   (one new, and the published-versions checks inside the publishing test), all passing.
 - No spec revision: nothing in the language changed.
+
+## 9. Built: 0.4.16 (2026-11-24)
+
+Two reads the app's last log and index queries wanted, found moving the app onto 0.4.15:
+
+- `PgStore.logBrief({ limit, before, writes })`: the chain's entries newest first, each told briefly (its log
+  id, moment, `by`, how many writes, the first few, the records touched), so an audit screen never loads a
+  restamp's thousands of writes. The ledger's query, moved into the store.
+- `Index.position(owner)`: the sum of an owner's view cursors, which a built page is stamped with.
+
+Proved on Postgres 17: the engine's suite 258, the store's 55, the host's 26, all passing.

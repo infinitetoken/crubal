@@ -1350,6 +1350,37 @@ export class PgStore {
   }
 
   /**
+   * The chain's entries told briefly, newest first (read-api.md 3.3): each entry's log id, moment and `by`, how
+   * many writes it holds, the first `writes` of them (40 unless said) and the records its writes touch. The
+   * rest of an entry stays in the database: a restamp's entry carries thousands of writes, and five hundred
+   * entries whole were hundreds of megabytes on an audit screen.
+   */
+  async logBrief(opts: { limit?: number; before?: number; writes?: number } = {}): Promise<{ seq: number; log: string; at: string; by: JsonObject; count: number; writes: JsonObject[]; records: string[] }[]> {
+    const conds = ["owner = $1", "chain = $2"];
+    const params: unknown[] = [this.owner, this.chain];
+    const shown = params.push(Math.max(0, Math.floor(opts.writes ?? 40)));
+    if (opts.before !== undefined) conds.push(`seq < $${params.push(opts.before)}`);
+    const limit = ` limit ${Math.max(1, Math.floor(opts.limit ?? 500))}`;
+    const { rows } = await this.pool.query(
+      `select seq, entry ->> 'log' as log, entry ->> 'at' as at, coalesce(entry -> 'by', '{}'::jsonb) as by,
+         jsonb_array_length(coalesce(entry -> 'writes', '[]')) as n,
+         (select coalesce(jsonb_agg(w order by i), '[]') from jsonb_array_elements(coalesce(entry -> 'writes', '[]')) with ordinality t(w, i) where i <= $${shown}) as writes,
+         (select coalesce(jsonb_agg(distinct w ->> 'record'), '[]') from jsonb_array_elements(coalesce(entry -> 'writes', '[]')) w where w ? 'record') as records
+       from log where ${conds.join(" and ")} order by seq desc${limit}`,
+      params,
+    );
+    return (rows as { seq: string | number; log: string | null; at: string | null; by: JsonObject; n: string | number; writes: JsonObject[]; records: string[] }[]).map((r) => ({
+      seq: Number(r.seq),
+      log: r.log ?? "",
+      at: r.at ?? "",
+      by: r.by,
+      count: Number(r.n),
+      writes: r.writes,
+      records: [...r.records].sort(),
+    }));
+  }
+
+  /**
    * The number of the last entry after `after` (read-api.md 3.3), or undefined when there is none; with
    * `drains: false`, the last one the drain did not write. Only the number is read: an entry can carry
    * thousands of writes, and "has anything landed since" should not load one.
