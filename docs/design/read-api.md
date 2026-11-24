@@ -180,8 +180,8 @@ the count reaches zero.
 
 On the branch `engine/read-api`. Pushing, the pull request and publishing are the operator's.
 
-- `PgStore`: `records` grown and `page` (3.1), `count` (3.2), `head` and `log` (3.3), `runs` and `intakes`
-  (3.5). The types `RecordsWhere` and `RecordsOptions` are exported.
+- `PgStore`: `records` grown and `page` (3.1), `count` (3.2), `head`, `log` and `lastSeq` (3.3),
+  `bundlesInForce` (3.4), `runs` and `intakes` (3.5). The types `RecordsWhere` and `RecordsOptions` are exported.
 - `Host`: `published` (3.4), `keyedCallers` and `revokeKeysOf` (3.5). The app's two key deletes are by
   owner and caller, which `revokeKey(raw)` could not do.
 - Proved on a Postgres 17: the engine's suite 258, the store's 53 (8 of them the read API's), the host's 25
