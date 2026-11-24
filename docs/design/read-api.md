@@ -1,6 +1,6 @@
 # A read API over the store
 
-Draft, 2026-11-24. Status: **for the operator's rulings** (section 7). Nothing here is built.
+Draft, 2026-11-24. Status: **ruled** (section 7, all four as recommended, 2026-11-24). Nothing here is built.
 
 The One Clean Stack plan, step 4: CashierFu stops running SQL on the engine's tables. Today it does, in 41
 files of its `lib/` and 9 of its scripts (`engine-holding-list.md` line 7 in the cashierfu repository; that
@@ -152,16 +152,16 @@ the count reaches zero.
 - The 2 tests that touch engine tables (`test/channels.test.ts`, `test/operations.test.ts`): they move with
   the code they test.
 
-## 7. Rulings asked
+## 7. Rulings (2026-11-24, the operator: "1. agreed 2. yes 3. yes 4. yes")
 
-1. **Counts and reports: a declared view, or a store call?** Recommended: views (3.6), the engine's own
+1. **Counts and reports: a declared view, or a store call?** Ruled: views. Recommended: views (3.6), the engine's own
    rule that the index answers counts; the store keeps only `count(where)`. The cost: every report becomes
    package text. The other way: a store `tally(where, by)` for group-bys, narrower to build and outside
    the views.
-2. **The app's tables move to a `cashierfu` schema?** Recommended: yes, in phase 0, so the guard can be a
+2. **The app's tables move to a `cashierfu` schema?** Ruled: yes. Recommended: yes, in phase 0, so the guard can be a
    plain check on schema names. It is a production migration.
-3. **One-off scripts archived, not ported?** Recommended: the ME conversion scripts and `place-128` are
+3. **One-off scripts archived, not ported?** Ruled: yes. Recommended: the ME conversion scripts and `place-128` are
    archived; the scripts still run (`row-indexes`, `index-touches`, `fill-derived` and the bench's) are
    ported.
-4. **Decision 11 (one shared copy)** decides phase 5. Ruled 2026-11-18 per the holding list; confirm it
-   stands.
+4. **Decision 11 (one shared copy)** decides phase 5. Ruled 2026-11-18 per the holding list; confirmed
+   2026-11-24.
