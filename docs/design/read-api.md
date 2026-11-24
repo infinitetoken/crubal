@@ -198,3 +198,75 @@ Two reads the app's last log and index queries wanted, found moving the app onto
 - `Index.position(owner)`: the sum of an owner's view cursors, which a built page is stamped with.
 
 Proved on Postgres 17: the engine's suite 258, the store's 55, the host's 26, all passing.
+
+## 10. Phase 3, designed and ruled (2026-11-24)
+
+Read off the 15 files still on the record for range, search and count reasons, query by query, and off what
+views and the index do today (spec 12; `crubal-host/src/indexer.ts`). Nothing here is built.
+
+### 10.1 What the reads turned out to be
+
+They are two kinds, and ruling 1 (views, not a store tally) fits only one.
+
+- **Screens a person browses**: the Content tower's counts, chips and word search (`row-query.ts`), the sales
+  and inventory reports (`aggregates.ts`), a report's buckets (`events.ts`), the catalog's search
+  (`catalog.ts`, `aggregates.ts` `searchProducts`), a product page's nested rows (`storefront.ts`), the
+  storefront's suggest (`storefront-search.ts`), the record finder (`record-finder.ts`). A view is right for
+  these: they page, count and search what a person looks at, and an index's lag is fine.
+- **Operational reads that must be current**: the message rate limits (`messages.ts` 85, 87), the bench's
+  counts of today (`bench.ts`), archiving old events (`stamps.ts`), delivering notifications
+  (`notifications.ts` 962), the matcher's products with no work (`matcher.ts` 465), the threads an order
+  change speaks in (`messages.ts` 707). A view is wrong for these: the index lags its log, a selection's `now`
+  is frozen when a row projects (12.6), and spec 12.6.2 says an action checks the store, not an index.
+
+### 10.2 What views and the index lack today
+
+| Need | Today | Which reads |
+| --- | --- | --- |
+| A range on a moment or date (before a cut, since an instant, today in a zone) | Period buckets by the date as written, numeric `a..b` only; no zone, nothing relative to now | bench, stamps, messages, figures, aggregates (sales, increments), row-query (late) |
+| Top N values by count | `list` gives the first N in view order | facet-edit, row-query chips, events |
+| A sum crossed with a second filter; a percentile | Sum per bucket of one filter; no percentile | aggregates (sales by channel), figures |
+| Search by prefix, on named facets, or-ed with an exact key | `q` is whole words over every string in the row, unranked | row-query, record-finder, aggregates, catalog, storefront-search |
+| Keyset paging; reading rows by record ids | Offset pages only | messages (threads), catalog |
+| Conditions over children (a unit with a live offer) | Read-through and rollups, but liveness against `now` goes stale | aggregates (live units, inventory), row-query |
+
+### 10.3 Proposed
+
+**3a. The store, no spec change (0.4.17).** Three more selections on `records`, `page` and `count`:
+`range: [facet or "created" or "updated", { after?, before? }]` (text order, which is ISO moment order; read
+inside the level's or kind's index, as the app's SQL does today), `lacks: string[]`, and
+`keys` taking a value list (`in`). Moves the operational reads: bench, stamps, the rate limits and `systemLine`
+in messages, notifications' delivery, the matcher's two loops. Small periodic sums (`figures.ts` every six
+hours, `incrementCounts` daily, `liveListingsOn`) list their records through the same range and count in the
+app: a percentile over a few hundred orders needs no spec.
+
+**3b. The index, one spec revision (12.3, 12.6.1).**
+- `search:` on a view: the facets `q` reads, matched by prefix (`word:*`), and `exact:` keys a whole `q`
+  matches by equality (gtin, cashierfuId). Ranked as the design doc already claims, or the claim struck.
+- Counts of an unlisted filter's top N by count, not the first N in view order.
+- A filter's sums crossed with a second filter (`dependent` carrying `sum`).
+- `serve` reads rows by record ids, and pages by keyset on the view's order.
+Moves the screens: row-query, record-finder, catalog, storefront, storefront-search, events, and the
+search and sales parts of aggregates.
+
+**3c. Package text, no engine change.** Children's conditions become rollups the packages declare (a unit's
+count of live offers; a product's units in stock), so a view filters on a field. Liveness against `now`
+(`until`) stays a loop that writes a state when an offer lapses, not a condition read at projection.
+
+**Left out.** `facet-edit.ts` counts the values of any key across every level: an operator's tool, rare, and
+no view spans every level. It keeps its SQL until it is redesigned, or takes a narrow store read by exception.
+The inventory report (`aggregates.ts` 468-497, 238 s under a walk) is the hardest: it is 3c's rollups plus 3b's
+counts, last.
+
+### 10.4 Rulings (2026-11-24, the operator: "I agree with all of this"; all four as recommended)
+
+1. **Narrow ruling 1**: operational reads that must be current go to the store (3a, no spec change); views
+   serve the screens (3b). Recommended: yes.
+2. **Small periodic sums computed in the app** from a ranged list, rather than percentiles in the spec.
+   Recommended: yes.
+3. **One spec revision for 3b** (search by prefix on named facets with exact keys; top N; sums by a second
+   filter; reads by id and keyset). Recommended: yes, drafted after 3a ships.
+4. **`facet-edit.ts`** keeps its SQL for now. Recommended: yes; it is the one file left on the record by design
+   until the field screen is redesigned.
+
+Next: build 3a as 0.4.17 (the store's `range`, `lacks` and `in`), then move the operational reads.
