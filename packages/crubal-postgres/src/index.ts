@@ -4,6 +4,6 @@ export { PgStore, QuorumRefused } from "./store.ts";
 export { entriesSince, markStale, publish, type Projecting } from "./projector.ts";
 export { Needs, settle, WorkingMap, WorkingRecords, workingState } from "./working.ts";
 export { type Adapter, PgBorder, type BorderOptions } from "./border.ts";
-export type { StoreOptions } from "./store.ts";
+export type { RecordsOptions, RecordsWhere, StoreOptions } from "./store.ts";
 export { borderOptions } from "./border.ts";
 export { checkAll, definitionsOf, installsInForce, latestInstalls, unitsExtensionOf, workingBundle } from "./definitions.ts";

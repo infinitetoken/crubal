@@ -242,6 +242,18 @@ export class Host {
     await this.pool.query("delete from host_api_keys where key_hash = $1", [hashKey(raw)]);
   }
 
+  /** The callers of an owner that hold at least one API key (read-api.md 3.5): no key, raw or hashed, leaves. */
+  async keyedCallers(owner: string): Promise<string[]> {
+    const { rows } = await this.pool.query("select distinct caller from host_api_keys where owner = $1 order by caller", [owner]);
+    return (rows as { caller: string }[]).map((r) => r.caller);
+  }
+
+  /** Revoke every API key a caller of an owner holds (read-api.md 3.5): a device or source switched off or re-keyed. */
+  async revokeKeysOf(owner: string, caller: string): Promise<number> {
+    const r = await this.pool.query("delete from host_api_keys where owner = $1 and caller = $2", [owner, caller]);
+    return r.rowCount ?? 0;
+  }
+
   /** Link an identity provider's subject to a caller, for the OIDC verifier. */
   async linkIdentity(provider: string, subject: string, owner: string, caller: string): Promise<void> {
     await this.pool.query("insert into host_identities (provider, subject, owner, caller) values ($1, $2, $3, $4) on conflict (provider, subject) do update set owner = excluded.owner, caller = excluded.caller", [provider, subject, owner, caller]);
@@ -832,6 +844,44 @@ export class Host {
     const { bundle, changes } = publish(source, { date, ...(previous ? { previous } : {}), ...(o.records?.length ? { records: o.records } : {}), key: { d: key.private, x: key.public } });
     await this.pool.query("insert into host_published (owner, package, version, hash, json, text, published) values ($1, $2, $3, $4, $5, $6, $7) on conflict (owner, package, version) do nothing", [owner, name, String(bundle.version), String(bundle.hash), bundle, source, this.now()]);
     return { bundle, changes: changes.map((c) => ({ member: c.member, kind: c.kind })), already: false };
+  }
+
+  /**
+   * Published versions (read-api.md 3.4): of an owner, of one of its packages, or of several packages named
+   * `owner/package`. `latest` keeps the latest of each package by the version order (11.8), never by text or
+   * by when it was published. `text` brings each version's text and signed bundle, read only for the versions
+   * that are returned.
+   */
+  async published(
+    where: { owner?: string; package?: string; ids?: string[] },
+    opts: { latest?: boolean; text?: boolean } = {},
+  ): Promise<{ owner: string; package: string; version: string; hash: string; published: string; text?: string; bundle?: JsonObject }[]> {
+    const conds: string[] = [];
+    const params: unknown[] = [];
+    if (where.owner !== undefined) conds.push(`owner = $${params.push(where.owner)}`);
+    if (where.package !== undefined) conds.push(`package = $${params.push(where.package)}`);
+    if (where.ids !== undefined) conds.push(`owner || '/' || package = any($${params.push(where.ids)})`);
+    if (!conds.length) throw new Error("published: say an owner, a package or ids");
+    type Row = { owner: string; package: string; version: string; hash: string; published: string };
+    let rows = (await this.pool.query(`select owner, package, version, hash, published from host_published where ${conds.join(" and ")}`, params)).rows as Row[];
+    rows.sort((a, b) => a.owner.localeCompare(b.owner) || a.package.localeCompare(b.package) || compareVersions(a.version, b.version));
+    if (opts.latest) {
+      const last = new Map<string, Row>();
+      for (const r of rows) last.set(`${r.owner}/${r.package}`, r);
+      rows = [...last.values()];
+    }
+    if (!opts.text || !rows.length) return rows;
+    const full = (
+      await this.pool.query(
+        "select owner, package, version, text, json from host_published where (owner, package, version) in (select * from unnest($1::text[], $2::text[], $3::text[]))",
+        [rows.map((r) => r.owner), rows.map((r) => r.package), rows.map((r) => r.version)],
+      )
+    ).rows as { owner: string; package: string; version: string; text: string; json: JsonObject }[];
+    const by = new Map(full.map((f) => [`${f.owner}/${f.package}/${f.version}`, f]));
+    return rows.map((r) => {
+      const f = by.get(`${r.owner}/${r.package}/${r.version}`);
+      return f ? { ...r, text: f.text, bundle: f.json } : r;
+    });
   }
 
   /** One published version: its signed bundle and its text, or null. */

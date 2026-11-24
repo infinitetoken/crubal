@@ -879,6 +879,18 @@ class: Noted
   const towerRow = (await host.publishedPackages("shop.example")).find((r) => r.package === "shop.example/tower") as JsonObject;
   assert.equal(towerRow.latest, "2026-10-17.16");
   assert.deepEqual(Object.keys(towerRow.versions as JsonObject).slice(-3), ["2026-10-17.2", "2026-10-17.9", "2026-10-17.16"]);
+  // The read API's published versions (0.4.15): the latest by the version order, its text read for it alone.
+  const latest = await host.published({ owner: "shop.example" }, { latest: true, text: true });
+  const tw = latest.find((r) => r.package === "tower");
+  assert.equal(tw?.version, "2026-10-17.16");
+  assert.ok(tw?.text?.includes("Tagged16"), "the latest's own text");
+  assert.equal(typeof tw?.bundle?.sig, "string");
+  assert.ok(latest.some((r) => r.package === "ground"), "every package of the owner, one row each");
+  assert.equal(latest.filter((r) => r.package === "tower").length, 1);
+  const towers = await host.published({ ids: ["shop.example/tower"] });
+  assert.deepEqual(towers.map((r) => r.version), ["2026-10-17", "2026-10-17.2", "2026-10-17.9", "2026-10-17.16"]);
+  assert.equal(towers[0]?.text, undefined, "no text unless asked");
+  assert.deepEqual((await host.published({ owner: "shop.example", package: "tower" }, { latest: true })).map((r) => r.version), ["2026-10-17.16"]);
   assert.equal((await host.publishPackage("shop.example", TOWER)).already, true, "the day's first stays behind it");
   const wk = await call("GET", "/.well-known/crubal.json");
   const listed = (wk.body.packages as JsonObject[]).find((p) => p.package === "shop.example/tower");
@@ -1299,4 +1311,18 @@ permissions: walkshelf
   const listedFilter = await index.serve(store, "walk", { caller: "walk.example", list: { state: 5 } });
   assert.equal(listedFilter.listed, undefined);
   assert.deepEqual(listedFilter.counts.state, { open: 4, done: 2 });
+});
+
+test("the read API's keys (0.4.15): the callers of an owner holding a key, and every key of one caller revoked at once", { skip: !url }, async () => {
+  await host.createOwner("keys.example");
+  const a1 = await host.issueKey("keys.example", "D-1", "bench");
+  await host.issueKey("keys.example", "D-1", "bench again");
+  await host.issueKey("keys.example", "S-1", "a source");
+  assert.deepEqual(await host.keyedCallers("keys.example"), ["D-1", "S-1"]);
+  assert.equal(await host.revokeKeysOf("keys.example", "D-1"), 2, "both of D-1's keys");
+  assert.deepEqual(await host.keyedCallers("keys.example"), ["S-1"]);
+  assert.equal(await host.revokeKeysOf("keys.example", "D-1"), 0, "none left to revoke");
+  const { rows } = await pool.query("select count(*)::int n from host_api_keys where owner = 'keys.example' and caller = 'D-1'");
+  assert.equal(rows[0].n, 0);
+  assert.equal(typeof a1, "string");
 });

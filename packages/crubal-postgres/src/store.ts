@@ -44,6 +44,75 @@ function draftOf(state: State): Draft {
   return { records: s.records, bindings: s.bindings, instructions: s.instructions as Draft["instructions"], edges: s.edges, review: s.reviews };
 }
 
+/**
+ * A selection of an owner's records (read-api.md 3.1). Every member narrows; each is answered by an index:
+ * the envelope's columns, or containment on the values document's GIN.
+ */
+export type RecordsWhere = {
+  level?: string;
+  kind?: string;
+  /** The parent, or any of several. */
+  of?: string | string[];
+  /** The placement, or any of several. */
+  within?: string | string[];
+  /** These records, by id. */
+  ids?: string[];
+  /** One key's value (as before the read API). */
+  key?: [string, Json];
+  /** Every one of these keys holds its value (containment: a list holds a value when it contains it). */
+  keys?: [string, Json][];
+  /** Each of these keys holds some value. */
+  has?: string[];
+  /** Records whose link names `to` (or any of several), through any of the facets `via` (a single link or a list of them). */
+  links?: { to: string | string[]; via: string[] };
+};
+
+export type RecordsOptions = {
+  limit?: number;
+  /** Keyset bounds on `ord`, the order records were first written in. */
+  after?: number;
+  before?: number;
+  /** Newest first (`ord` descending); page with `before`. */
+  newest?: boolean;
+  /** `false` leaves archived records out. */
+  archived?: boolean;
+  /** Only these facets' values (and their sources) come back. */
+  values?: string[];
+};
+
+/** The SQL for a selection: the conditions, their parameters, and a way to add one more. */
+function selection(owner: string, where: RecordsWhere, archived: boolean | undefined) {
+  const conds = ["owner = $1"];
+  const params: unknown[] = [owner];
+  const add = (sql: string, v: unknown) => {
+    params.push(v);
+    conds.push(sql.replaceAll("?", `$${params.length}`));
+  };
+  const oneOrMany = (col: string, v: string | string[]) => (Array.isArray(v) ? add(`${col} = any(?)`, v) : add(`${col} = ?`, v));
+  if (where.level) add("level = ?", where.level);
+  if (where.kind) add("kind = ?", where.kind);
+  if (where.of !== undefined) oneOrMany('"of"', where.of);
+  if (where.within !== undefined) oneOrMany("within", where.within);
+  if (where.ids) add("id = any(?)", where.ids);
+  // Containment, so the GIN on the values document answers (an equality on `->` would not).
+  const pairs = [...(where.key ? [where.key] : []), ...(where.keys ?? [])];
+  // One containment per pair, so two values asked of one list key must both be there.
+  for (const [k, v] of pairs) add("doc -> 'values' @> ?::jsonb", JSON.stringify({ [k]: v }));
+  if (where.has?.length) {
+    // `?&` is Postgres's "has every key"; written directly, so the placeholder in `add` does not take its `?`.
+    params.push(where.has);
+    conds.push(`doc -> 'values' ?& $${params.length}::text[]`);
+  }
+  if (where.links) {
+    const to = Array.isArray(where.links.to) ? where.links.to : [where.links.to];
+    // A link is `{ $link: id }`, alone or in a list; either is found by containment (as the linked count is).
+    const docs = where.links.via.flatMap((f) => to.flatMap((id) => [JSON.stringify({ [f]: { $link: id } }), JSON.stringify({ [f]: [{ $link: id }] })]));
+    add("doc -> 'values' @> any(?::jsonb[])", docs);
+  }
+  if (archived === false) add("coalesce(status ->> 'state', '') <> ?", "archived");
+  return { conds, params, add };
+}
+
 export type StoreOptions = {
   /**
    * Whether `state()` and `records.all()` may load an owner's whole state. `refuse` is for a host serving
@@ -1078,22 +1147,43 @@ export class PgStore {
     }
   }
 
-  /** Records by level, kind, parent, placement or one key's value, in log order; paged by `ord`. */
-  async records(where: { level?: string; kind?: string; of?: string; within?: string; key?: [string, Json] } = {}, opts: { limit?: number; after?: number; archived?: boolean } = {}): Promise<Record[]> {
-    const conds = ["owner = $1"];
-    const params: unknown[] = [this.owner];
-    const add = (sql: string, v: unknown) => { params.push(v); conds.push(sql.replace("?", `$${params.length}`)); };
-    if (where.level) add("level = ?", where.level);
-    if (where.kind) add("kind = ?", where.kind);
-    if (where.of) add('"of" = ?', where.of);
-    if (where.within) add("within = ?", where.within);
-    // Containment, so the GIN on the values document answers (an equality on `->` would not).
-    if (where.key) add("doc -> 'values' @> ?::jsonb", JSON.stringify({ [where.key[0]]: where.key[1] }));
-    if (opts.archived === false) add("coalesce(status ->> 'state', '') <> ?", "archived");
+  /**
+   * Records by a selection (`RecordsWhere`), in log order or newest first; paged by `ord` (read-api.md 3.1).
+   * Every call that worked before the read API returns what it did.
+   */
+  async records(where: RecordsWhere = {}, opts: RecordsOptions = {}): Promise<Record[]> {
+    return (await this.page(where, opts)).records;
+  }
+
+  /**
+   * A page of `records`, and the cursor for the next: pass `next` as `after` (log order) or as `before`
+   * (`newest`). No `next` when the page came back short of its limit, or when it had none.
+   */
+  async page(where: RecordsWhere = {}, opts: RecordsOptions = {}): Promise<{ records: Record[]; next?: number }> {
+    const { conds, params, add } = selection(this.owner, where, opts.archived);
     if (opts.after !== undefined) add("ord > ?", opts.after);
-    const limit = opts.limit ? ` limit ${Math.max(1, Math.floor(opts.limit))}` : "";
-    const { rows } = await this.pool.query(`select * from records where ${conds.join(" and ")} order by ord${limit}`, params);
-    return (rows as { [column: string]: unknown }[]).map((r) => recordOf(r));
+    if (opts.before !== undefined) add("ord < ?", opts.before);
+    const limit = opts.limit ? Math.max(1, Math.floor(opts.limit)) : undefined;
+    let doc = "doc";
+    if (opts.values) {
+      // Only the facets asked come back, with their sources (and the record's `*` source): a list's row
+      // should not carry a record's whole document across the wire.
+      params.push(opts.values);
+      const n = `$${params.length}`;
+      doc = `jsonb_set(jsonb_set(doc, '{values}', coalesce((select jsonb_object_agg(e.key, e.value) from jsonb_each(doc -> 'values') e where e.key = any(${n})), '{}'::jsonb)), '{sources}', coalesce((select jsonb_object_agg(e.key, e.value) from jsonb_each(coalesce(doc -> 'sources', '{}'::jsonb)) e where e.key = any(${n}) or e.key = '*'), '{}'::jsonb)) as doc`;
+    }
+    const cols = `id, owner, kind, level, "of", within, status, applied, wears, created, updated, ord, ${doc}`;
+    const { rows } = await this.pool.query(`select ${cols} from records where ${conds.join(" and ")} order by ord${opts.newest ? " desc" : ""}${limit ? ` limit ${limit}` : ""}`, params);
+    const out = rows as { [column: string]: unknown }[];
+    const last = out.at(-1);
+    return { records: out.map((r) => recordOf(r)), ...(limit && out.length === limit && last ? { next: Number(last.ord) } : {}) };
+  }
+
+  /** How many records `records(where)` would return with no limit: one indexed count (read-api.md 3.2). */
+  async count(where: RecordsWhere = {}, opts: { archived?: boolean } = {}): Promise<number> {
+    const { conds, params } = selection(this.owner, where, opts.archived);
+    const { rows } = await this.pool.query(`select count(*)::bigint as n from records where ${conds.join(" and ")}`, params);
+    return Number((rows[0] as { n: string }).n);
   }
 
   /** Every edge of the owner (small: people and their grants). */
@@ -1105,6 +1195,21 @@ export class PgStore {
   /** The install log as what is in force: every version taken, in order, less the packages that left (11.4). */
   async installed(): Promise<JsonObject[]> {
     return installsInForce(await this.installLog());
+  }
+
+  /** The signed bundles of the packages in force (read-api.md 3.4), in the order they are in force. */
+  async bundlesInForce(): Promise<{ package: string; version: string; bundle: JsonObject }[]> {
+    const inForce = (await this.installed()).map((i) => ({ package: String(i.package), version: String(i.version) }));
+    if (!inForce.length) return [];
+    const { rows } = await this.pool.query(
+      "select package, version, json from bundles where owner = $1 and (package, version) in (select * from unnest($2::text[], $3::text[]))",
+      [this.owner, inForce.map((i) => i.package), inForce.map((i) => i.version)],
+    );
+    const by = new Map((rows as { package: string; version: string; json: JsonObject }[]).map((r) => [`${r.package} /${r.version}`, r.json]));
+    return inForce.flatMap((i) => {
+      const bundle = by.get(`${i.package} /${i.version}`);
+      return bundle ? [{ ...i, bundle }] : [];
+    });
   }
 
   /** The install log whole: every version taken and every leaving, in order. */
@@ -1219,6 +1324,70 @@ export class PgStore {
   async entries(): Promise<Entry[]> {
     const { rows } = await this.pool.query("select entry from log where owner = $1 and chain = $2 order by seq", [this.owner, this.chain]);
     return rows.map((r: { entry: Entry }) => r.entry);
+  }
+
+  /** The chain's head (read-api.md 3.3): its last sequence number (0 before any entry) and that entry's hash. */
+  async head(): Promise<{ seq: number; hash: string | null }> {
+    const { rows } = await this.pool.query("select head_seq, head_hash from chains where owner = $1 and chain = $2", [this.owner, this.chain]);
+    const r = rows[0] as { head_seq: string | number; head_hash: string | null } | undefined;
+    return { seq: r ? Number(r.head_seq) : 0, hash: r?.head_hash ?? null };
+  }
+
+  /**
+   * A stretch of the chain with each entry's sequence number (read-api.md 3.3): after or before a number, in
+   * order or newest first, at most `limit`. `drains: false` leaves out the drain's own entries (those `by`
+   * the migration `drain`), so "has anything a person or a loop wrote landed since" is one indexed read.
+   */
+  async log(opts: { after?: number; before?: number; limit?: number; newest?: boolean; drains?: boolean } = {}): Promise<{ seq: number; entry: Entry }[]> {
+    const conds = ["owner = $1", "chain = $2"];
+    const params: unknown[] = [this.owner, this.chain];
+    if (opts.after !== undefined) conds.push(`seq > $${params.push(opts.after)}`);
+    if (opts.before !== undefined) conds.push(`seq < $${params.push(opts.before)}`);
+    if (opts.drains === false) conds.push("coalesce(entry -> 'by' ->> 'migration', '') <> 'drain'");
+    const limit = opts.limit ? ` limit ${Math.max(1, Math.floor(opts.limit))}` : "";
+    const { rows } = await this.pool.query(`select seq, entry from log where ${conds.join(" and ")} order by seq${opts.newest ? " desc" : ""}${limit}`, params);
+    return (rows as { seq: string | number; entry: Entry }[]).map((r) => ({ seq: Number(r.seq), entry: r.entry }));
+  }
+
+  /**
+   * The number of the last entry after `after` (read-api.md 3.3), or undefined when there is none; with
+   * `drains: false`, the last one the drain did not write. Only the number is read: an entry can carry
+   * thousands of writes, and "has anything landed since" should not load one.
+   */
+  async lastSeq(opts: { after?: number; drains?: boolean } = {}): Promise<number | undefined> {
+    const conds = ["owner = $1", "chain = $2"];
+    const params: unknown[] = [this.owner, this.chain];
+    if (opts.after !== undefined) conds.push(`seq > $${params.push(opts.after)}`);
+    if (opts.drains === false) conds.push("coalesce(entry -> 'by' ->> 'migration', '') <> 'drain'");
+    const { rows } = await this.pool.query(`select max(seq) as seq from log where ${conds.join(" and ")}`, params);
+    const v = (rows[0] as { seq: string | number | null } | undefined)?.seq;
+    return v === null || v === undefined ? undefined : Number(v);
+  }
+
+  /**
+   * Runs (read-api.md 3.5; runs.md), newest first: of a contract, on a record, in a state. A run's state and
+   * names are in its document, so this reads the owner's runs by `ord` and filters on them.
+   */
+  async runs(where: { contract?: string; record?: string; state?: string } = {}, opts: { limit?: number } = {}): Promise<{ run: string; json: JsonObject }[]> {
+    const conds = ["owner = $1"];
+    const params: unknown[] = [this.owner];
+    for (const k of ["contract", "record", "state"] as const) {
+      const v = where[k];
+      if (v !== undefined) conds.push(`json ->> '${k}' = $${params.push(v)}`);
+    }
+    const limit = opts.limit ? ` limit ${Math.max(1, Math.floor(opts.limit))}` : "";
+    const { rows } = await this.pool.query(`select run, json from runs where ${conds.join(" and ")} order by ord desc${limit}`, params);
+    return rows as { run: string; json: JsonObject }[];
+  }
+
+  /** What arrived (read-api.md 3.5; 7.4), in the order received: its id, contract, the record it is for and its outcome document. The raw bytes stay behind. */
+  async intakes(where: { for?: string; contract?: string } = {}): Promise<{ intake: string; contract: string | null; for: string | null; received: string | null; json: JsonObject }[]> {
+    const conds = ["owner = $1"];
+    const params: unknown[] = [this.owner];
+    if (where.for !== undefined) conds.push(`"for" = $${params.push(where.for)}`);
+    if (where.contract !== undefined) conds.push(`contract = $${params.push(where.contract)}`);
+    const { rows } = await this.pool.query(`select intake, contract, "for", received, json from intake where ${conds.join(" and ")} order by received`, params);
+    return rows as { intake: string; contract: string | null; for: string | null; received: string | null; json: JsonObject }[];
   }
 
   /** Lock the chain for this transaction and return its head. Writers to one chain serialize here. */
