@@ -297,3 +297,33 @@ before a catalog-sized lane reads this way, is to count through `index_rows_orde
 range on the first sort key); not built.
 
 Proved on Postgres 17 by the host's suite (27).
+
+## 12. Built: 0.4.18 (2026-11-25): a record's neighbors, read from the order's index
+
+Section 11 proposed counting a record's place through `index_rows_order`. Measured first, and it does not
+cure it: split into index ranges, the large branch (every row whose first key stands before the record's) is
+still read by a parallel sequential scan, 529 ms for a record 300,000 deep on the local copy's largest view
+(347,095 rows). A place is a count of what stands before, and that grows with the depth however it is
+written. The page read at that depth is slower still: 1.1 to 1.5 s, an offset of 300,000.
+
+What a screen that opens one record needs is its neighbors, not its page. So:
+
+- `Index.serve(store, view, { around: <record>, beside: <n> })`, and `?around=…&beside=…` on the route: the
+  record with `n` rows on each side of it in the view's order (at most 200 a side), in place of its page.
+  The rows are read outward from the record: each side is a union of branches that cannot overlap, each an
+  equality on the keys before it and one range on the next, ordered and limited. That shape is what the
+  order's index answers.
+- The answer says `ends`: whether the rows reach the selection's first row and its last.
+- `at` is said with `beside` only where the selection holds at most `PLACE_BOUND` rows (20,000). In a larger
+  one the place is left unsaid. Without `beside`, `around` behaves as in 0.4.17 and always says it.
+- The count of 0.4.17 is written by the same branches now, in place of `is not distinct from`.
+- `beside` is a reserved name on the route.
+
+Measured on the same view, the owner reading, no picks: the record 300,000 deep with 24 a side in 26 to 33
+ms, against 1,476 ms by its page; a record 341,436 deep the same. **Not measured:** a view whose first key is
+descending (the order's index is ascending throughout, so such a side is sorted after it is narrowed, and
+its cost on a large view is unknown); a selection under picks or a search at this size.
+
+Proved on Postgres 17 by one test of the host's suite, which holds every answer (0, 1, 2 and 9 a side, an
+ascending and a descending view, values unset, a pick, a search, three callers) to the view walked page by
+page. The three suites were not run whole for this version.

@@ -34,6 +34,15 @@ export type Serve = {
    * the first) and `at` unsaid. What a screen that opens one record among a lane's many reads its place by.
    */
   around?: string;
+  /**
+   * With `around` (0.4.18): serve the record and this many rows on each side of it, in the view's order, in
+   * place of the page it is on. The neighbors are read from the order's index outward from the record, so
+   * the cost is the rows served and never the record's depth in the view (a page read by number, and a
+   * place counted, both grow with the depth). The answer says `ends`: whether the rows reach the selection's
+   * first row and its last. `at` is said only where the selection is small enough to count (`PLACE_BOUND`
+   * rows): in a larger one the place is left unsaid, never guessed. At most 200 a side.
+   */
+  beside?: number;
   picks?: { [filter: string]: string[] };
   q?: string;
   caller?: string;
@@ -60,7 +69,10 @@ export type Serve = {
    */
   counts?: "always" | "stored" | "standard";
 };
-export type Page = { view: string; version: string; audience: string; seq: number; page: number; pages: number; /** The rows the picks (and the search) select, across every page: the figure a report stamps. */ total: number; /** The place of the record asked `around`, from 1 across every page; unsaid when the selection does not hold it. */ at?: number; rows: JsonObject[]; counts: { [filter: string]: { [bucket: string]: number } }; /** The values listed for the filters `list` named, in the view's order. */ listed?: { [filter: string]: string[] }; sums?: Sums; nested?: Nested; indexable: boolean };
+export type Page = { view: string; version: string; audience: string; seq: number; page: number; pages: number; /** The rows the picks (and the search) select, across every page: the figure a report stamps. */ total: number; /** The place of the record asked `around`, from 1 across every page; unsaid when the selection does not hold it. */ at?: number; /** With `beside`: whether the rows served reach the selection's first row and its last. */ ends?: { first: boolean; last: boolean }; rows: JsonObject[]; counts: { [filter: string]: { [bucket: string]: number } }; /** The values listed for the filters `list` named, in the view's order. */ listed?: { [filter: string]: string[] }; sums?: Sums; nested?: Nested; indexable: boolean };
+
+/** The most rows a selection may hold for a record's place in it to be counted when its neighbors are read (`beside`). */
+export const PLACE_BOUND = 20000;
 
 /** A row's slot as a number, in SQL: money by its amount, a quantity by its count, a number as it is, a numeric text read, else nothing. */
 const numericSql = (slot: string) =>
@@ -246,6 +258,8 @@ export class Index {
     const pickList = Object.entries(picks).filter(([, c]) => c.length);
     let page = Math.max(1, Math.floor(o.page ?? 1));
     let at: number | undefined;
+    let ends: { first: boolean; last: boolean } | undefined;
+    const beside = o.around !== undefined && o.beside !== undefined ? Math.max(0, Math.min(200, Math.floor(o.beside))) : undefined;
     // The rows are selected, counted, ordered and paged by the database (brief 18 step 1): nothing here is
     // proportional to the view. Picks are containments on the buckets document (the GIN answers), the
     // search is the vector, the order is the stored sort and pin, the page a limit and an offset. The counts
@@ -352,14 +366,20 @@ export class Index {
       }
       const chosen = served.filter((r) => passes(r));
       total = chosen.length;
+      let found = -1;
       if (o.around !== undefined) {
-        const found = chosen.findIndex((r) => String(r.record) === o.around);
+        found = chosen.findIndex((r) => String(r.record) === o.around);
         if (found >= 0) {
           at = found + 1;
           page = Math.ceil(at / v.page);
         }
       }
-      onPage = chosen.slice((page - 1) * v.page, page * v.page);
+      if (beside !== undefined && found >= 0) {
+        const from = Math.max(0, found - beside);
+        const to = Math.min(chosen.length, found + beside + 1);
+        onPage = chosen.slice(from, to);
+        ends = { first: from === 0, last: to === chosen.length };
+      } else onPage = chosen.slice((page - 1) * v.page, page * v.page);
     } else {
       type Tally = { total: number; counts: Page["counts"]; sums: Sums; nested: Nested; listed?: { [filter: string]: string[] } };
       // The tally kept in this process, or in the host's table by any process, under the same key (the
@@ -455,28 +475,76 @@ export class Index {
           total = Number((await this.pool.query(`select count(*) as n from (select 1 from index_rows where ${all.sql} limit 10001) t`, all.ps)).rows[0]?.n ?? 0);
         }
       }
+      let window: Row[] | undefined;
       if (o.around !== undefined) {
-        // The record's own keys, read within the selection (so a record the picks leave out has no place),
-        // then the rows that stand before it in the view's order, counted: one row read and one count, no sort.
+        // The record's own keys, read within the selection (so a record the picks leave out has no place).
         const one = build(undefined, [o.around]);
-        const it = (await this.pool.query(`select pin, sort ->> 0 as s0, sort ->> 1 as s1, sort ->> 2 as s2 from index_rows where ${one.sql} and record = $${one.ps.length}`, one.ps)).rows[0] as Row | undefined;
+        const it = (await this.pool.query(`select record, row, buckets, marks, ancestors, sort, pin, sort ->> 0 as s0, sort ->> 1 as s1, sort ->> 2 as s2 from index_rows where ${one.sql} and record = $${one.ps.length}`, one.ps)).rows[0] as Row | undefined;
         if (it) {
-          const b = build(undefined, [it.pin ?? null, it.s0 ?? null, it.s1 ?? null, it.s2 ?? null, o.around]);
-          const n = b.ps.length - 5;
-          // Each key as the order reads it: ascending puts what is unset last, descending first (the database's own rule).
+          // The order's five keys, each as the order reads it: ascending puts what is unset last, descending
+          // first (the database's own rule). `t` is the record's own value of the key.
           const keys = [
-            { e: "pin", p: `$${n + 1}::integer`, desc: false },
-            ...[0, 1, 2].map((i) => ({ e: `(sort ->> ${i})`, p: `$${n + 2 + i}::text`, desc: v.order[i]?.dir === "after" })),
-            { e: "record", p: `$${n + 5}::text`, desc: false },
+            { e: "pin", cast: "integer", t: (it.pin ?? null) as unknown, desc: false },
+            ...[0, 1, 2].map((i) => ({ e: `(sort ->> ${i})`, cast: "text", t: (it[`s${i}`] ?? null) as unknown, desc: v.order[i]?.dir === "after" })),
+            { e: "record", cast: "text", t: o.around as unknown, desc: false },
           ];
-          const before = (k: (typeof keys)[number]) => (k.desc ? `(${k.e} > ${k.p} or (${k.e} is null and ${k.p} is not null))` : `(${k.e} < ${k.p} or (${k.e} is not null and ${k.p} is null))`);
-          const precedes = keys.map((k, i) => `(${[...keys.slice(0, i).map((x) => `${x.e} is not distinct from ${x.p}`), before(k)].join(" and ")})`).join(" or ");
-          at = Number((await this.pool.query(`select count(*) as n from index_rows where ${b.sql} and (${precedes})`, b.ps)).rows[0]?.n ?? 0) + 1;
-          page = Math.ceil(at / v.page);
+          // The rows that stand on one side of the record, as branches that cannot overlap: for each key in
+          // turn, the keys before it equal to the record's and this one strictly on that side. Every branch
+          // is an equality prefix and one range, which is what the order's index answers; an `or` across
+          // them, or `is not distinct from`, is not (a count written that way scanned the table, 2026-11-25).
+          const branches = (side: "before" | "after"): ((ps: unknown[]) => string)[] => {
+            const out: ((ps: unknown[]) => string)[] = [];
+            keys.forEach((k, i) => {
+              const eq = (ps: unknown[]) => keys.slice(0, i).map((x) => (x.t === null ? `${x.e} is null` : `${x.e} = $${ps.push(x.t)}::${x.cast}`));
+              // Toward the start of the order when (before, ascending) or (after, descending): smaller values, and never the unset.
+              const low = (side === "before") !== k.desc;
+              const sides: ((ps: unknown[]) => string)[] = [];
+              if (low) {
+                // Ascending, before: smaller values; an unset record has every set value before it. Descending, after: smaller values only (the unset stand first).
+                if (k.t !== null) sides.push((ps) => `${k.e} < $${ps.push(k.t)}::${k.cast}`);
+                else if (!k.desc) sides.push(() => `${k.e} is not null`);
+              } else {
+                // Ascending, after: larger values, then the unset. Descending, before: larger values, and the unset (first of all).
+                if (k.t !== null) {
+                  sides.push((ps) => `${k.e} > $${ps.push(k.t)}::${k.cast}`);
+                  sides.push(() => `${k.e} is null`);
+                }
+              }
+              if (k.desc && k.t === null && side === "after") sides.push(() => `${k.e} is not null`);
+              for (const sd of sides) out.push((ps) => [...eq(ps), sd(ps)].join(" and "));
+            });
+            return out;
+          };
+          if (beside !== undefined) {
+            // The reverse of the order, key by key, with the unset placed where the reverse puts them.
+            const reverse = `pin desc nulls first, ${[0, 1, 2].map((i) => `(sort ->> ${i}) ${v.order[i]?.dir === "after" ? "asc nulls last" : "desc nulls first"}`).concat("record desc").join(", ")}`;
+            const read = async (side: "before" | "after"): Promise<Row[]> => {
+              const by = side === "after" ? order : reverse;
+              const b = build();
+              const most = `$${b.ps.push(beside + 1)}`;
+              const parts = branches(side).map((w) => `(select record, row, buckets, marks, ancestors, sort, pin from index_rows where ${b.sql} and ${w(b.ps)} order by ${by} limit ${most})`);
+              if (!parts.length) return [];
+              return (await this.pool.query(`select * from (${parts.join(" union all ")}) t order by ${by} limit ${most}`, b.ps)).rows as Row[];
+            };
+            const [before, after] = [await read("before"), await read("after")];
+            ends = { first: before.length <= beside, last: after.length <= beside };
+            window = [...before.slice(0, beside).reverse(), it, ...after.slice(0, beside)];
+          }
+          // The place: the rows before the record, counted. With neighbors read it is counted only where the
+          // selection is small (the count grows with the record's depth); a page read by number needs it.
+          if (beside === undefined || total <= PLACE_BOUND) {
+            const b = build();
+            const precedes = branches("before").map((w) => `(${w(b.ps)})`);
+            at = (precedes.length ? Number((await this.pool.query(`select count(*) as n from index_rows where ${b.sql} and (${precedes.join(" or ")})`, b.ps)).rows[0]?.n ?? 0) : 0) + 1;
+            page = Math.ceil(at / v.page);
+          }
         }
       }
-      const paged = build(undefined, [v.page, (page - 1) * v.page]);
-      onPage = (await this.pool.query(`select record, row, buckets, marks, ancestors, sort, pin from index_rows where ${paged.sql} order by ${order} limit $${paged.ps.length - 1} offset $${paged.ps.length}`, paged.ps)).rows as Row[];
+      if (window) onPage = window;
+      else {
+        const paged = build(undefined, [v.page, (page - 1) * v.page]);
+        onPage = (await this.pool.query(`select record, row, buckets, marks, ancestors, sort, pin from index_rows where ${paged.sql} order by ${order} limit $${paged.ps.length - 1} offset $${paged.ps.length}`, paged.ps)).rows as Row[];
+      }
     }
     const pages = Math.max(1, Math.ceil(total / v.page));
     const indexable = !o.q && !linked && page === 1 && (pickList.length === 0 || (pickList.length === 1 && v.index.includes(pickList[0]?.[0] as string) && pickList[0]?.[1].length === 1));
@@ -499,7 +567,7 @@ export class Index {
       delete row.linked;
       return row;
     });
-    return { view, version, audience: v.show, seq, page, pages, total, ...(at !== undefined ? { at } : {}), rows: out, counts, ...(Object.keys(listed).length ? { listed } : {}), ...(Object.keys(sums).length ? { sums } : {}), ...(Object.keys(nested).length ? { nested } : {}), indexable };
+    return { view, version, audience: v.show, seq, page, pages, total, ...(at !== undefined ? { at } : {}), ...(ends ? { ends } : {}), rows: out, counts, ...(Object.keys(listed).length ? { listed } : {}), ...(Object.keys(sums).length ? { sums } : {}), ...(Object.keys(nested).length ? { nested } : {}), indexable };
   }
 
   private linkedColumn: Promise<void> | undefined;
