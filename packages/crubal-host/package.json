@@ -1,6 +1,6 @@
 {
   "name": "@crubal/host",
-  "version": "0.4.16",
+  "version": "0.4.17",
   "description": "The reference CRUBAL host: identity, secrets, adapters, signing, the loops, the platform index and the HTTP surface over the Postgres store.",
   "license": "Apache-2.0",
   "type": "module",
@@ -29,8 +29,8 @@
     "prepublishOnly": "npm run typecheck && npm run build"
   },
   "dependencies": {
-    "@crubal/engine": "0.4.16",
-    "@crubal/postgres": "0.4.16",
+    "@crubal/engine": "0.4.17",
+    "@crubal/postgres": "0.4.17",
     "pg": "^8.13.0"
   },
   "devDependencies": {

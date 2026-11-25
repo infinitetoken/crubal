@@ -270,3 +270,30 @@ counts, last.
    until the field screen is redesigned.
 
 Next: build 3a as 0.4.17 (the store's `range`, `lacks` and `in`), then move the operational reads.
+
+## 11. Built: 0.4.17 (2026-11-25): a record's place in a view
+
+Asked by the app (CashierFu brief 128, the dive among many): a screen that opens one record of a lane has
+to stand in that lane, and a view was read by page number alone. Ruled by the operator 2026-11-25 over the
+alternative, a card's address carrying the page it stood on.
+
+- `Index.serve(store, view, { around: <record> })`, and `?around=<record>` on the host's `/v/<view>`: the
+  page served is the one the record is on within the selection (the picks, the search and the caller's
+  partition applied), and the answer says its place as `at`, counted from 1 across every page. A record the
+  selection does not hold leaves the page as asked and `at` unsaid; it is never an error.
+- How: the record's own keys are read within the selection, then the rows that stand before it in the view's
+  order are counted. The count agrees with the order by construction of one predicate over the same five
+  keys (the pin, the three stored sort keys, the record); the test holds every answer to the view walked
+  page by page.
+- `around` is now a reserved name on the route beside `page`, `q`, `shape` and `count`: a filter of that name
+  could not be picked there.
+
+**What it costs, measured and not cured.** The count is a scan, not a seek. On the local copy's largest view
+(347,095 rows, a record 300,000 deep) the plan is a parallel sequential scan of `index_rows`: 167 ms warm on
+the development machine, 152,601 buffers read. That is the whole table, so on a host with a cold cache it
+will be slower, and it grows with every owner's rows, not only this view's. A lane of work (tens to
+thousands of rows) is far inside it; a whole catalog is not proven on production. The cure, if it is wanted
+before a catalog-sized lane reads this way, is to count through `index_rows_order` (the pinned rows, then a
+range on the first sort key); not built.
+
+Proved on Postgres 17 by the host's suite (27).

@@ -27,6 +27,13 @@ function textOf(row: JsonObject): string {
 
 export type Serve = {
   page?: number;
+  /**
+   * A record to stand at (0.4.17): the page served is the one this record is on within the selection (the
+   * picks, the search and the caller's partition applied), and the answer says its place as `at`, counted
+   * from 1 across every page. A record the selection does not hold leaves the page as asked (`page`, else
+   * the first) and `at` unsaid. What a screen that opens one record among a lane's many reads its place by.
+   */
+  around?: string;
   picks?: { [filter: string]: string[] };
   q?: string;
   caller?: string;
@@ -53,7 +60,7 @@ export type Serve = {
    */
   counts?: "always" | "stored" | "standard";
 };
-export type Page = { view: string; version: string; audience: string; seq: number; page: number; pages: number; /** The rows the picks (and the search) select, across every page: the figure a report stamps. */ total: number; rows: JsonObject[]; counts: { [filter: string]: { [bucket: string]: number } }; /** The values listed for the filters `list` named, in the view's order. */ listed?: { [filter: string]: string[] }; sums?: Sums; nested?: Nested; indexable: boolean };
+export type Page = { view: string; version: string; audience: string; seq: number; page: number; pages: number; /** The rows the picks (and the search) select, across every page: the figure a report stamps. */ total: number; /** The place of the record asked `around`, from 1 across every page; unsaid when the selection does not hold it. */ at?: number; rows: JsonObject[]; counts: { [filter: string]: { [bucket: string]: number } }; /** The values listed for the filters `list` named, in the view's order. */ listed?: { [filter: string]: string[] }; sums?: Sums; nested?: Nested; indexable: boolean };
 
 /** A row's slot as a number, in SQL: money by its amount, a quantity by its count, a number as it is, a numeric text read, else nothing. */
 const numericSql = (slot: string) =>
@@ -237,7 +244,8 @@ export class Index {
     const seq = cur ? Number(cur.seq) : 0;
     const picks = o.picks ?? {};
     const pickList = Object.entries(picks).filter(([, c]) => c.length);
-    const page = Math.max(1, o.page ?? 1);
+    let page = Math.max(1, Math.floor(o.page ?? 1));
+    let at: number | undefined;
     // The rows are selected, counted, ordered and paged by the database (brief 18 step 1): nothing here is
     // proportional to the view. Picks are containments on the buckets document (the GIN answers), the
     // search is the vector, the order is the stored sort and pin, the page a limit and an offset. The counts
@@ -344,6 +352,13 @@ export class Index {
       }
       const chosen = served.filter((r) => passes(r));
       total = chosen.length;
+      if (o.around !== undefined) {
+        const found = chosen.findIndex((r) => String(r.record) === o.around);
+        if (found >= 0) {
+          at = found + 1;
+          page = Math.ceil(at / v.page);
+        }
+      }
       onPage = chosen.slice((page - 1) * v.page, page * v.page);
     } else {
       type Tally = { total: number; counts: Page["counts"]; sums: Sums; nested: Nested; listed?: { [filter: string]: string[] } };
@@ -440,6 +455,26 @@ export class Index {
           total = Number((await this.pool.query(`select count(*) as n from (select 1 from index_rows where ${all.sql} limit 10001) t`, all.ps)).rows[0]?.n ?? 0);
         }
       }
+      if (o.around !== undefined) {
+        // The record's own keys, read within the selection (so a record the picks leave out has no place),
+        // then the rows that stand before it in the view's order, counted: one row read and one count, no sort.
+        const one = build(undefined, [o.around]);
+        const it = (await this.pool.query(`select pin, sort ->> 0 as s0, sort ->> 1 as s1, sort ->> 2 as s2 from index_rows where ${one.sql} and record = $${one.ps.length}`, one.ps)).rows[0] as Row | undefined;
+        if (it) {
+          const b = build(undefined, [it.pin ?? null, it.s0 ?? null, it.s1 ?? null, it.s2 ?? null, o.around]);
+          const n = b.ps.length - 5;
+          // Each key as the order reads it: ascending puts what is unset last, descending first (the database's own rule).
+          const keys = [
+            { e: "pin", p: `$${n + 1}::integer`, desc: false },
+            ...[0, 1, 2].map((i) => ({ e: `(sort ->> ${i})`, p: `$${n + 2 + i}::text`, desc: v.order[i]?.dir === "after" })),
+            { e: "record", p: `$${n + 5}::text`, desc: false },
+          ];
+          const before = (k: (typeof keys)[number]) => (k.desc ? `(${k.e} > ${k.p} or (${k.e} is null and ${k.p} is not null))` : `(${k.e} < ${k.p} or (${k.e} is not null and ${k.p} is null))`);
+          const precedes = keys.map((k, i) => `(${[...keys.slice(0, i).map((x) => `${x.e} is not distinct from ${x.p}`), before(k)].join(" and ")})`).join(" or ");
+          at = Number((await this.pool.query(`select count(*) as n from index_rows where ${b.sql} and (${precedes})`, b.ps)).rows[0]?.n ?? 0) + 1;
+          page = Math.ceil(at / v.page);
+        }
+      }
       const paged = build(undefined, [v.page, (page - 1) * v.page]);
       onPage = (await this.pool.query(`select record, row, buckets, marks, ancestors, sort, pin from index_rows where ${paged.sql} order by ${order} limit $${paged.ps.length - 1} offset $${paged.ps.length}`, paged.ps)).rows as Row[];
     }
@@ -464,7 +499,7 @@ export class Index {
       delete row.linked;
       return row;
     });
-    return { view, version, audience: v.show, seq, page, pages, total, rows: out, counts, ...(Object.keys(listed).length ? { listed } : {}), ...(Object.keys(sums).length ? { sums } : {}), ...(Object.keys(nested).length ? { nested } : {}), indexable };
+    return { view, version, audience: v.show, seq, page, pages, total, ...(at !== undefined ? { at } : {}), rows: out, counts, ...(Object.keys(listed).length ? { listed } : {}), ...(Object.keys(sums).length ? { sums } : {}), ...(Object.keys(nested).length ? { nested } : {}), indexable };
   }
 
   private linkedColumn: Promise<void> | undefined;
