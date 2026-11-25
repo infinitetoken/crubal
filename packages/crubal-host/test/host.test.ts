@@ -1333,3 +1333,130 @@ test("the read API's index position (0.4.15): the sum of an owner's view cursors
   assert.equal(await index.position("pos.example"), 12);
   assert.equal(await index.position("nobody.example"), 0);
 });
+
+test("0.4.17: a view read around a record serves the page it stands on and says its place, in the view's order (a descending key, values unset among them), under a pick and a search, for the owner, a caller on the root and a caller placed on one record", { skip: !url }, async () => {
+  await host.createOwner("place.example");
+  const dev = new PgStore(pool, "place.example", { allowUnsigned: true });
+  const store = await host.storeFor("place.example");
+  for (const text of [STANDARD_PACKAGES.core, STANDARD_PACKAGES.units, STANDARD_PACKAGES.party])
+    await dev.install(publish(text, { date: text.match(/^package: \S+ \/(\S+)/m)?.[1] ?? "2026-10-16" }).bundle, undefined, clock);
+  const pkg = `package: placeshelf /2026-10-01
+  owner: place.example
+  label: Place
+  crubal: 2
+  extends: crubal.com/party /2026-10-16
+
+kind: shop
+  levels: shop
+  base: Shop
+kind: item
+  levels: pick
+  base: Item
+
+shopName$
+title$
+slot$
+state{open|done}
+
+class: Shop
+  for: shop
+  facets:
+    shopName
+class: Item
+  for: item
+  facets:
+    !title
+    slot
+    state
+
+shape: card
+  slots:
+    !title -> heading
+    slot -> slot
+filter: state
+  facet: state
+view: byTitle
+  select:
+    level: pick
+  filters: state
+  order: title
+  shape: card
+  show: staff
+  page: 2
+view: bySlot
+  select:
+    level: pick
+  filters: state
+  order: slot after, title
+  shape: card
+  show: staff
+  page: 2
+
+permissions: placeshelf
+  menu:
+    keep: edit title
+  presets:
+    keeper: keep   audience: staff
+  relations: operator, staff
+`;
+  await dev.install(publish(pkg, { date: "2026-10-01" }).bundle, undefined, clock);
+  // Seven picks: two share a slot (the title settles them), two have none.
+  const picks: [string, string | undefined, string][] = [["K1", "B", "open"], ["K2", undefined, "open"], ["K3", "A", "open"], ["K4", "C", "done"], ["K5", "A", "open"], ["K6", undefined, "done"], ["K7", "B", "done"]];
+  await store.commit({ person: "place.example" }, (d) => {
+    d.records.set("ROOT", { id: "ROOT", kind: "shop", level: "shop", owner: "place.example", values: { shopName: "Place" }, sources: { "*": { origin: "declared", via: "L-1" } } });
+    d.edges.set("E-a", { edge: "E-a", who: "person:cashierfu.com:P-1", relation: "operator", mode: "admin", on: "ROOT", grants: [], by: "owner" });
+    d.edges.set("E-b", { edge: "E-b", who: "person:cashierfu.com:P-2", relation: "operator", mode: "admin", on: "K3", grants: [], by: "owner" });
+    for (const [id, slot, state] of picks) d.records.set(id, { id, kind: "item", level: "pick", owner: "place.example", within: "ROOT", values: { title: id, ...(slot ? { slot } : {}), state }, sources: { "*": { origin: "declared", via: "L-1" } } });
+  }, clock);
+  const index = new Index(pool);
+  for (const view of ["byTitle", "bySlot"]) await index.apply(store, view);
+  // The truth each answer is held to: the view walked page by page, every record's page and place noted.
+  const walked = async (view: string, o: { caller: string; picks?: { [f: string]: string[] }; q?: string }) => {
+    const places = new Map<string, { page: number; at: number }>();
+    const first = await index.serve(store, view, o);
+    for (let page = 1; page <= first.pages; page++) {
+      const rows = (await index.serve(store, view, { ...o, page })).rows;
+      rows.forEach((r, i) => places.set(String(r.record), { page, at: (page - 1) * 2 + i + 1 }));
+    }
+    return { places, total: first.total };
+  };
+  for (const caller of ["place.example", "person:cashierfu.com:P-1"]) {
+    for (const view of ["byTitle", "bySlot"]) {
+      for (const sel of [{}, { picks: { state: ["open"] } }, { q: "K5" }]) {
+        const o = { caller, ...sel };
+        const { places, total } = await walked(view, o);
+        assert.equal(places.size, total, `${view}: the walk met every row once`);
+        for (const [id] of picks) {
+          const got = await index.serve(store, view, { ...o, around: id, page: 3 });
+          const want = places.get(id);
+          const said = `${caller} ${view} ${JSON.stringify(sel)} around ${id}`;
+          if (want) {
+            assert.equal(got.at, want.at, `${said}: its place`);
+            assert.equal(got.page, want.page, `${said}: its page`);
+            assert.ok(got.rows.some((r) => r.record === id), `${said}: on the page served`);
+          } else {
+            assert.equal(got.at, undefined, `${said}: no place in a selection that does not hold it`);
+            assert.equal(got.page, 3, `${said}: the page as asked`);
+          }
+          assert.equal(got.total, total, `${said}: the selection's total`);
+        }
+      }
+    }
+  }
+  // Descending: C, the Bs by title, the As by title, and the two with no slot last, as the index orders them.
+  const order = [...(await walked("bySlot", { caller: "place.example" })).places.keys()];
+  assert.deepEqual(order, ["K4", "K1", "K7", "K3", "K5", "K2", "K6"]);
+  // A record nobody holds has no place; the page is the first when none was asked.
+  const none = await index.serve(store, "byTitle", { caller: "place.example", around: "K-none" });
+  assert.equal(none.at, undefined);
+  assert.equal(none.page, 1);
+  // A caller placed on one record is served that record alone: it is first of one, and another has no place.
+  const mine = await index.serve(store, "byTitle", { caller: "person:cashierfu.com:P-2", around: "K3" });
+  assert.deepEqual([mine.total, mine.at, mine.page], [1, 1, 1]);
+  assert.equal((await index.serve(store, "byTitle", { caller: "person:cashierfu.com:P-2", around: "K1" })).at, undefined);
+  // Over HTTP: `around` names the record.
+  const key = await host.issueKey("place.example", "place.example", "owner");
+  const res = await fetch(`${base}/o/place.example/v/byTitle?around=K5`, { headers: { authorization: `Bearer ${key}` } });
+  const body = (await res.json()) as JsonObject;
+  assert.deepEqual([res.status, body.at, body.page], [200, 5, 3]);
+});
