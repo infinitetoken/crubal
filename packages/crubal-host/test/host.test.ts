@@ -1334,7 +1334,7 @@ test("the read API's index position (0.4.15): the sum of an owner's view cursors
   assert.equal(await index.position("nobody.example"), 0);
 });
 
-test("0.4.17: a view read around a record serves the page it stands on and says its place, in the view's order (a descending key, values unset among them), under a pick and a search, for the owner, a caller on the root and a caller placed on one record", { skip: !url }, async () => {
+test("0.4.17 and 0.4.18: a view read around a record serves the page it stands on and says its place, or the record with its neighbors read outward from it, in the view's order (a descending key, values unset among them), under a pick and a search, for the owner, a caller on the root and a caller placed on one record", { skip: !url }, async () => {
   await host.createOwner("place.example");
   const dev = new PgStore(pool, "place.example", { allowUnsigned: true });
   const store = await host.storeFor("place.example");
@@ -1439,6 +1439,21 @@ permissions: placeshelf
             assert.equal(got.page, 3, `${said}: the page as asked`);
           }
           assert.equal(got.total, total, `${said}: the selection's total`);
+          // 0.4.18: the record with its neighbors, read outward from it: the same rows the walk holds on
+          // each side, whether they reach the selection's ends, and the place where the selection is small.
+          for (const beside of [0, 1, 2, 9]) {
+            const near = await index.serve(store, view, { ...o, around: id, beside });
+            const order = [...places.keys()];
+            if (!want) {
+              assert.equal(near.ends, undefined, `${said} beside ${beside}: no neighbors of a record the selection lacks`);
+              continue;
+            }
+            const from = Math.max(0, want.at - 1 - beside);
+            const to = Math.min(order.length, want.at + beside);
+            assert.deepEqual(near.rows.map((r) => r.record), order.slice(from, to), `${said} beside ${beside}: the rows on each side, in order`);
+            assert.deepEqual(near.ends, { first: from === 0, last: to === order.length }, `${said} beside ${beside}: the ends`);
+            assert.equal(near.at, want.at, `${said} beside ${beside}: its place, the selection being small`);
+          }
         }
       }
     }
@@ -1454,9 +1469,14 @@ permissions: placeshelf
   const mine = await index.serve(store, "byTitle", { caller: "person:cashierfu.com:P-2", around: "K3" });
   assert.deepEqual([mine.total, mine.at, mine.page], [1, 1, 1]);
   assert.equal((await index.serve(store, "byTitle", { caller: "person:cashierfu.com:P-2", around: "K1" })).at, undefined);
+  // A caller placed on one record: the record alone, both ends reached.
+  const alone = await index.serve(store, "byTitle", { caller: "person:cashierfu.com:P-2", around: "K3", beside: 2 });
+  assert.deepEqual([alone.rows.map((r) => r.record), alone.ends], [["K3"], { first: true, last: true }]);
   // Over HTTP: `around` names the record.
   const key = await host.issueKey("place.example", "place.example", "owner");
   const res = await fetch(`${base}/o/place.example/v/byTitle?around=K5`, { headers: { authorization: `Bearer ${key}` } });
   const body = (await res.json()) as JsonObject;
   assert.deepEqual([res.status, body.at, body.page], [200, 5, 3]);
+  const near = (await (await fetch(`${base}/o/place.example/v/byTitle?around=K5&beside=1`, { headers: { authorization: `Bearer ${key}` } })).json()) as JsonObject;
+  assert.deepEqual([(near.rows as JsonObject[]).map((r) => r.record), near.ends], [["K4", "K5", "K6"], { first: false, last: false }]);
 });
