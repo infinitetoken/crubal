@@ -60,6 +60,14 @@ test("each item becomes a row, after the rows held; the facet's value goes; agai
   assert.equal(serialize(again.values.shots as never), serialize(once.values.shots as never));
 });
 
+test("a rows step rides a version where nothing broke: the facet stays beside the compound its items move into", () => {
+  // Revision 69. The version before holds the same definitions and no recipe; this one adds the move alone.
+  const prev = { ...publish(head, { date: "2026-11-20" }).bundle, version: "2026-11-20" };
+  const out = publish(head + recipe, { date: "2026-11-21", previous: prev });
+  assert.equal(out.changes.some((c) => c.kind === "breaking"), false);
+  assert.equal(readBundle(out.bundle).recipes.length, 1);
+});
+
 test("a step must name a compound and its children", () => {
   assert.throws(() => publish(head + recipe.replace("-> shots", "-> title"), { date: "2026-11-21" }), /title is not a compound/);
   assert.throws(() => publish(head + recipe.replace("shows: cover", "colour: red"), { date: "2026-11-21" }), /colour is not a child of shots/);

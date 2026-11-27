@@ -64,7 +64,7 @@ its target.
 | `parts` | `parts: -> slot` under a compound, with an optional `when:` and `child -> facet` lines beneath | the compound's rows the condition picks become parts of the slot (5.6), keyed as the rows were, wearing the slot's class, each named child read into the facet named; a row whose key the record already holds as a part is left alone; the compound stays as it was | no The step acts only on a record wearing a class that declares the slot (5.6): a record that wears none keeps its rows until it does, and the step runs for it when it does (10.4). A backfill like `fill`: a recipe of parts steps alone rides a version where nothing broke, and run again it makes nothing twice (a row without a key of its own binds to the part it made before, each taken once). |
 | `rows` | `rows: -> compound` under a many-valued facet, with `as: child` and `child: value` lines beneath | revision 63: each item of the facet becomes a row of the compound, after the rows it holds, the item under the child named and each `child: value` said on every row made; the facet's own value goes; an item a row already holds is not made a row again | no |
 
-**Words tidied where nothing broke (revision 63).** A recipe MAY ride a version in which nothing broke when its steps are backfills (`fill`, `recompute`, `parts`) or only tidy words no definition lists: a `merge` or a `rename` of a text facet's values, a compound's text child among them. A step over a facet of an extended package is left to the install, as a `parts` step is.
+**Words tidied where nothing broke (revision 63; `rows`, revision 69).** A recipe MAY ride a version in which nothing broke when its steps are backfills (`fill`, `recompute`, `parts`, and `rows`: a many-valued facet kept beside the compound its items become rows of breaks nothing, and the move makes nothing twice) or only tidy words no definition lists: a `merge` or a `rename` of a text facet's values, a compound's text child among them. A step over a facet of an extended package is left to the install, as a `parts` step is.
 
 **`parts` run again (revision 62).** A row with no key of its own binds to the part the step made of it before: the part holding exactly what the row maps, or, when the step has since gained a `child -> facet` line, the part holding some of it and nothing the row says otherwise, which is filled with what it lacks. Nothing is made twice. A part under a key the step mints, bound to no row and holding the very values of a part a row did bind, was made twice by an older run and is removed; a part under a person's own key, or one holding anything of its own, is never touched.
 
@@ -114,8 +114,9 @@ A package MUST be refused at publish when a recipe breaks these:
    covered by `review`, `move` or `hand`. A member that holds no value on any record, a view, shape or filter
    (and a block carried under a prefix, 11.9), retires without a step (revision 24): nothing on a record is lost by its
    going, and whatever still names it the version's own checks refuse (12.8).
-6. A recipe whose steps are all `fill` or `recompute` is a backfill and MAY accompany a version where nothing
-   broke; any other recipe with nothing broken is refused.
+6. A recipe whose steps are all `fill`, `recompute`, `parts` or `rows`, or only tidy words no definition lists
+   (10.3), is a backfill and MAY accompany a version where nothing broke; any other recipe with nothing broken
+   is refused.
 7. A class version that stops projecting a key (a `level::` line removed, chapter 5.3.3) carries the
    instruction for it (10.7): an `instructions: class:<Name>/<version>` block with `-key`, published in the
    bundle and issued when the version installs. A publish without it is refused.

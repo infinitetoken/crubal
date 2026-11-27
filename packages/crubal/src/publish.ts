@@ -234,7 +234,11 @@ export function publish(source: string | Parsed, o: PublishOptions): { bundle: J
     // it is left to the install, which reads the recipe under the merged dictionary.
     return f === undefined || f.type === "text";
   };
-  const backfill = (r: JsonObject) => ((r.steps as JsonObject[]) ?? []).every((s) => isObj(s.fill) || s.recompute === true || isObj(s.parts) || words(s));
+  // Revision 69: so is a `rows` step. A many-valued facet kept beside the compound its items move into breaks
+  // nothing (the facet stays for whoever still writes it), yet the move is real work on the records held: each
+  // item becomes a row once, and run again it makes nothing twice. Refused, the version could not go out at
+  // all (cashierfu.com/commerce /2027-01-04.26, held back a day, 2026-11-27).
+  const backfill = (r: JsonObject) => ((r.steps as JsonObject[]) ?? []).every((s) => isObj(s.fill) || s.recompute === true || isObj(s.parts) || isObj(s.rows) || words(s));
   if (!breaking.length && covering.some((r) => !backfill(r))) throw new CrubalError(`a recipe from ${from} is present but nothing broke`);
   for (const r of covering) (r.migration as JsonObject).to = to;
   if (o.previous) b.previous = String(o.previous.version);
